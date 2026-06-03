@@ -47,6 +47,15 @@ html, body {
   min-width: 0;
 }
 
+.leftColumn,
+.rightColumn {
+  background: var(--bg-panel);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+
 .rightColumn {
   width: 380px;
   display: flex;
@@ -138,6 +147,13 @@ html, body {
   align-items: center;
   margin-bottom: 10px;
 }
+
+.leftColumn h1,
+.cartHeader h2 {
+  color: var(--text-primary); /* blanco */
+  font-size: 20px;
+}
+
 
 .cartItem {
   padding: 6px 10px;
@@ -231,7 +247,7 @@ html, body {
 /* Total */
 
 .totalLabel {
-  font-size: 11px;
+  font-size: 15px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -245,18 +261,19 @@ html, body {
   text-align: center;
   letter-spacing: -1px;
   margin: 8px 0 12px;
+  margin-bottom: 30px;
 }
 
 /* Selector de pago */
 .paymentSelect {
   width: 100%;
   padding: 11px 14px;
-  font-size: 16px;
+  font-size: 18px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--bg-panel);
   color: var(--text-primary);
-  margin-top: 6px;
+  margin-top: 10px;
   outline: none;
   cursor: pointer;
   transition: border-color 0.2s;
@@ -310,6 +327,22 @@ html, body {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
+
+.fullscreenBtn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: 0.2s;
+}
+
+.fullscreenBtn:hover {
+  background: var(--bg-hover);
+}
+
 
 /* Popup */
 .popupOverlay {
@@ -405,4 +438,25 @@ html, body {
   color: var(--text-primary); /* blanco */
   margin-bottom: 10px;
   text-align: center;
+}
+
+.fullscreenFloating {
+  position: fixed;
+  bottom: 80px;      /* controla qué tan abajo va */
+  left: 35px;        /* controla qué tan a la izquierda va */
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-accent);
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  z-index: 9999;
+  transition: 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.fullscreenFloating:hover {
+  background: var(--bg-hover);
+  transform: scale(1.05);
 }

@@ -15,6 +15,8 @@ export default function Caja() {
   const [clients, setClients] = useState<any[]>([]);
   const [selectedClient, setSelectedClient] = useState("");
   const [showConfig, setShowConfig] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
 
   // NUEVO: popup de datos de pago
 const firstInputRef = useRef<HTMLInputElement | null>(null);
@@ -70,6 +72,28 @@ useEffect(() => {
     firstInputRef.current.focus();
   }
 }, [showPaymentPopup]);
+
+useEffect(() => {
+  const handleKey = (e: KeyboardEvent) => {
+    if (e.key === "F11") {
+      e.preventDefault();
+      toggleFullscreen();
+    }
+  };
+
+  window.addEventListener("keydown", handleKey);
+  return () => window.removeEventListener("keydown", handleKey);
+}, []);
+
+useEffect(() => {
+  const handleChange = () => {
+    console.log("FULLSCREEN:", document.fullscreenElement);
+    setIsFullscreen(Boolean(document.fullscreenElement));
+  };
+
+  document.addEventListener("fullscreenchange", handleChange);
+  return () => document.removeEventListener("fullscreenchange", handleChange);
+}, []);
 
   
   const searchProducts = async (value: string) => {
@@ -309,8 +333,8 @@ useEffect(() => {
 
     let lines: string[] = [];
 
-    lines.push("MAXIKIOSCO FAMILIAR");
-    lines.push("Avellaneda - Buenos Aires");
+    lines.push("MAXIKIOSCO YAYA");
+    lines.push("Aguilares - Tucumán");
     lines.push("--------------------------------");
     lines.push(`Ticket: ${saleId || "N/A"}`);
     lines.push(`Fecha: ${fecha}  ${hora}`);
@@ -394,7 +418,38 @@ useEffect(() => {
     printWindow.print();
   };
 
+  const toggleFullscreen = () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch((err) => {
+      console.error("Error al entrar en fullscreen:", err);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+};
+
+
+
   return (
+  <>
+   <button onClick={toggleFullscreen} className={styles.fullscreenFloating}>
+  {isFullscreen ? (
+    // ICONO DE CONTRAER (el que mandaste)
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+      <path d="M9 4H4v5M4 15v5h5M15 4h5v5M20 15v5h-5" 
+            stroke="white" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ) : (
+    // ICONO DE EXPANDIR
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+      <path d="M4 9V4h5M4 15v5h5M20 9V4h-5M20 15v5h-5" 
+            stroke="white" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  )}
+</button>
+
+
+
     <div className={styles.mainLayout}>
       {/* COLUMNA IZQUIERDA */}
       <div className={styles.leftColumn}>
@@ -482,12 +537,7 @@ useEffect(() => {
         <div className={styles.cartHeader}>
           <h2>Carrito</h2>
 
-          <button
-            onClick={() => setShowConfig(true)}
-            className={styles.configBtn}
-          >
-            ⚙️
-          </button>
+          <button onClick={() => setShowConfig(true)}className={styles.configBtn}>⚙️</button>
         </div>
 
         <div className={styles.cartBox}>
@@ -796,5 +846,6 @@ useEffect(() => {
         </div>
       )}
     </div>
+    </>
   );
 }
