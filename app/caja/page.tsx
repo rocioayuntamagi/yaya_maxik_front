@@ -7,6 +7,7 @@ import styles from "./caja.module.css";
 export default function Caja() {
   const router = useRouter();
 
+  // ─── 1. ESTADOS ────────────────────────────────────────────────────────────
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -16,86 +17,40 @@ export default function Caja() {
   const [selectedClient, setSelectedClient] = useState("");
   const [showConfig, setShowConfig] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-
-
-  // NUEVO: popup de datos de pago
-const firstInputRef = useRef<HTMLInputElement | null>(null);
-
-
   const [showPaymentPopup, setShowPaymentPopup] = useState(false);
   const [paymentData, setPaymentData] = useState<any>({});
   const [showTicketPopup, setShowTicketPopup] = useState(false);
   const [ticketText, setTicketText] = useState("");
   const [lastSaleId, setLastSaleId] = useState<string | null>(null);
-  
-  
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
+  const [authChecked, setAuthChecked] = useState(false);
+
+
+  // ─── 2. REFERENCIAS ────────────────────────────────────────────────────────
+  const firstInputRef = useRef<HTMLInputElement | null>(null);
 
   const token =
     typeof window !== "undefined"
       ? localStorage.getItem("token") || ""
       : "";
 
-  useEffect(() => {
-    const fetchClients = async () => {
-      const res = await fetch("http://localhost:4000/api/customers", {
-        headers: { Authorization: `Bearer ${token}` },
+  const total = cart.reduce(
+    (acc, item) => acc + item.price * item.quantity,
+    0
+  );
+
+  // ─── 3. FUNCIONES AUXILIARES ───────────────────────────────────────────────
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error("Error al entrar en fullscreen:", err);
       });
-      const data = await res.json();
-      setClients(data);
-    };
-
-    fetchClients();
-  }, []);
-
-  useEffect(() => {
-  if (!showPaymentPopup) return;
-
-  const handleKey = (e: KeyboardEvent) => {
-    // ESC cierra el popup
-    if (e.key === "Escape") {
-      setShowPaymentPopup(false);
-    }
-
-    // ENTER confirma la venta
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleConfirmPayment();
+    } else {
+      document.exitFullscreen();
     }
   };
 
-  window.addEventListener("keydown", handleKey);
-  return () => window.removeEventListener("keydown", handleKey);
-}, [showPaymentPopup, paymentData]);
-
-useEffect(() => {
-  if (showPaymentPopup && firstInputRef.current) {
-    firstInputRef.current.focus();
-  }
-}, [showPaymentPopup]);
-
-useEffect(() => {
-  const handleKey = (e: KeyboardEvent) => {
-    if (e.key === "F11") {
-      e.preventDefault();
-      toggleFullscreen();
-    }
-  };
-
-  window.addEventListener("keydown", handleKey);
-  return () => window.removeEventListener("keydown", handleKey);
-}, []);
-
-useEffect(() => {
-  const handleChange = () => {
-    console.log("FULLSCREEN:", document.fullscreenElement);
-    setIsFullscreen(Boolean(document.fullscreenElement));
-  };
-
-  document.addEventListener("fullscreenchange", handleChange);
-  return () => document.removeEventListener("fullscreenchange", handleChange);
-}, []);
-
-  
   const searchProducts = async (value: string) => {
     setQuery(value);
     setSelectedIndex(-1);
@@ -183,29 +138,239 @@ useEffect(() => {
     setCart(newCart);
   };
 
-  const total = cart.reduce(
-    (acc, item) => acc + item.price * item.quantity,
-    0
-  );
+  const buildTicketText = ({
+    saleId,
+    total,
+    paymentMethod,
+    paymentData,
+    cart,
+  }: any) => {
+    const now = new Date();
+    const fecha = now.toLocaleDateString("es-AR");
+    const hora = now.toLocaleTimeString("es-AR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-  // NUEVO: en vez de guardar directo, abrimos popup de datos de pago
+    let lines: string[] = [];
+
+    lines.push("MAXIKIOSCO YAYA");
+    lines.push("Aguilares - Tucumán");
+    lines.push("--------------------------------");
+    lines.push(`Ticket: ${saleId || "N/A"}`);
+    lines.push(`Fecha: ${fecha}  ${hora}`);
+    lines.push("--------------------------------");
+
+    cart.forEach((item: any) => {
+      const lineTotal = item.price * item.quantity;
+      lines.push(`${item.name} x${item.quantity}   $${lineTotal}`);
+    });
+
+    lines.push("--------------------------------");
+    lines.push(`TOTAL:              $${total}`);
+    lines.push("--------------------------------");
+    lines.push(`Medio de pago: ${paymentMethod.toUpperCase()}`);
+
+    if (paymentMethod === "efectivo") {
+      lines.push(`Recibido:           $${paymentData.receivedAmount}`);
+      lines.push(`Vuelto:             $${paymentData.change}`);
+    }
+
+    if (paymentMethod === "debito" || paymentMethod === "credito") {
+      if (paymentData.cardBrand) lines.push(`Tarjeta: ${paymentData.cardBrand}`);
+      if (paymentData.cardLast4) lines.push(`Últimos 4: ${paymentData.cardLast4}`);
+      if (paymentData.authCode) lines.push(`Autorización: ${paymentData.authCode}`);
+      if (paymentData.operationNumber)
+        lines.push(`Operación: ${paymentData.operationNumber}`);
+      if (paymentMethod === "credito") {
+        lines.push(`Cuotas: ${paymentData.installments || 1}`);
+        if (paymentData.interest) lines.push(`Interés: ${paymentData.interest}%`);
+      }
+    }
+
+    if (paymentMethod === "transferencia") {
+      if (paymentData.transferOperationId)
+        lines.push(`Operación: ${paymentData.transferOperationId}`);
+    }
+
+    if (paymentMethod === "mercadopago") {
+      if (paymentData.mpPaymentId) lines.push(`Pago MP: ${paymentData.mpPaymentId}`);
+      if (paymentData.mpStatus) lines.push(`Estado: ${paymentData.mpStatus}`);
+    }
+
+    if (paymentMethod === "fiado") {
+      lines.push(
+        `Cliente: ${
+          clients.find((c) => c._id === selectedClient)?.name || ""
+        }`
+      );
+    }
+
+    lines.push("--------------------------------");
+    lines.push("Gracias por su compra!");
+
+    return lines.join("\n");
+  };
+
+  const handlePrintTicket = () => {
+    const printWindow = window.open("", "_blank", "width=400,height=600");
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Ticket</title>
+          <style>
+            body {
+              font-family: monospace;
+              font-size: 12px;
+              white-space: pre;
+              margin: 0;
+              padding: 10px;
+            }
+          </style>
+        </head>
+        <body>
+          ${ticketText.replace(/\n/g, "<br/>")}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
+  // ─── 4. FUNCIONES DE CLIENTES ──────────────────────────────────────────────
+  const fetchClients = async () => {
+    const res = await fetch("http://localhost:4000/api/customers", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+
+    if (Array.isArray(data)) {
+      setClients(data);
+    } else if (Array.isArray(data?.customers)) {
+      setClients(data.customers);
+    } else {
+      console.error("Formato inesperado de clientes:", data);
+      setClients([]);
+    }
+  };
+
+  const createClient = async () => {
+    if (!newClientName.trim()) {
+      alert("Ingresá un nombre válido");
+      return;
+    }
+
+    const res = await fetch("http://localhost:4000/api/customers", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name: newClientName }),
+    });
+
+    const data = await res.json();
+    setClients((prev) => [...prev, data]);
+    setSelectedClient(data._id);
+    setNewClientName("");
+    setShowNewClient(false);
+  };
+
+  // ─── 5. FUNCIONES DE VENTAS ────────────────────────────────────────────────
   const confirmSale = () => {
     if (cart.length === 0) {
       alert("El carrito está vacío");
       return;
     }
 
-    if (paymentMethod === "fiado" && !selectedClient) {
-      alert("Seleccioná un cliente para fiar");
-      return;
-    }
+    {paymentMethod === "fiado" && (
+  <div style={{ marginTop: 20 }}>
+    <h3>Seleccionar cliente</h3>
 
-    // inicializar datos según medio de pago
+    <select
+      value={selectedClient}
+      onChange={(e) => setSelectedClient(e.target.value)}
+      style={{ padding: 10, width: "100%" }}
+    >
+      <option value="">Elegir cliente...</option>
+      {clients.map((c) => (
+        <option key={c._id} value={c._id}>
+          {c.name}
+        </option>
+      ))}
+    </select>
+
+    {/* BOTÓN AGREGAR CLIENTE */}
+    <button
+      onClick={() => setShowNewClient(true)}
+      style={{
+        marginTop: 10,
+        padding: "8px 12px",
+        background: "orange",
+        color: "white",
+        border: "none",
+        borderRadius: 6,
+        cursor: "pointer",
+      }}
+    >
+      Agregar cliente
+    </button>
+
+    {/* FORMULARIO NUEVO CLIENTE */}
+    {showNewClient && (
+      <div style={{ marginTop: 15 }}>
+        <input
+          type="text"
+          placeholder="Nombre del cliente"
+          value={newClientName}
+          onChange={(e) => setNewClientName(e.target.value)}
+          style={{ padding: 10, width: "100%", marginBottom: 10 }}
+        />
+
+        <button
+          onClick={createClient}
+          style={{
+            padding: "8px 12px",
+            background: "green",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer",
+            marginRight: 10,
+          }}
+        >
+          Guardar
+        </button>
+
+        <button
+          onClick={() => setShowNewClient(false)}
+          style={{
+            padding: "8px 12px",
+            background: "gray",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer",
+          }}
+        >
+          Cancelar
+        </button>
+      </div>
+    )}
+  </div>
+)}
+
+
     const base: any = {};
+
     if (paymentMethod === "efectivo") {
       base.receivedAmount = total;
       base.change = 0;
     }
+
     if (paymentMethod === "debito" || paymentMethod === "credito") {
       base.cardBrand = "";
       base.cardLast4 = "";
@@ -216,9 +381,11 @@ useEffect(() => {
         base.interest = 0;
       }
     }
+
     if (paymentMethod === "transferencia") {
       base.transferOperationId = "";
     }
+
     if (paymentMethod === "mercadopago") {
       base.mpPaymentId = "";
       base.mpStatus = "approved";
@@ -228,28 +395,6 @@ useEffect(() => {
     setShowPaymentPopup(true);
   };
 
-  useEffect(() => {
-  if (!showPaymentPopup) return;
-
-  const handleKey = (e: KeyboardEvent) => {
-    // ESC cierra el popup
-    if (e.key === "Escape") {
-      setShowPaymentPopup(false);
-    }
-
-    // ENTER confirma la venta
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleConfirmPayment();
-    }
-  };
-
-  window.addEventListener("keydown", handleKey);
-  return () => window.removeEventListener("keydown", handleKey);
-}, [showPaymentPopup, paymentData]);
-
-
-  // NUEVO: guardar venta + generar ticket
   const handleConfirmPayment = async () => {
     const saleData: any = {
       products: cart.map((item) => ({
@@ -319,533 +464,515 @@ useEffect(() => {
     setSelectedClient("");
   };
 
-  // NUEVO: generador de ticket clásico
-  const buildTicketText = ({
-    saleId,
-    total,
-    paymentMethod,
-    paymentData,
-    cart,
-  }: any) => {
-    const now = new Date();
-    const fecha = now.toLocaleDateString("es-AR");
-    const hora = now.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  // ─── 6. EFECTOS ────────────────────────────────────────────────────────────
+  useEffect(() => {
+  if (!authChecked) return;
+  fetchClients();
+}, [authChecked]);
 
-    let lines: string[] = [];
 
-    lines.push("MAXIKIOSCO YAYA");
-    lines.push("Aguilares - Tucumán");
-    lines.push("--------------------------------");
-    lines.push(`Ticket: ${saleId || "N/A"}`);
-    lines.push(`Fecha: ${fecha}  ${hora}`);
-    lines.push("--------------------------------");
+  useEffect(() => {
+    if (!showPaymentPopup) return;
 
-    cart.forEach((item: any) => {
-      const name = item.name;
-      const lineTotal = item.price * item.quantity;
-      lines.push(`${name} x${item.quantity}   $${lineTotal}`);
-    });
-
-    lines.push("--------------------------------");
-    lines.push(`TOTAL:              $${total}`);
-    lines.push("--------------------------------");
-    lines.push(`Medio de pago: ${paymentMethod.toUpperCase()}`);
-
-    if (paymentMethod === "efectivo") {
-      lines.push(`Recibido:           $${paymentData.receivedAmount}`);
-      lines.push(`Vuelto:             $${paymentData.change}`);
-    }
-
-    if (paymentMethod === "debito" || paymentMethod === "credito") {
-      if (paymentData.cardBrand) lines.push(`Tarjeta: ${paymentData.cardBrand}`);
-      if (paymentData.cardLast4) lines.push(`Últimos 4: ${paymentData.cardLast4}`);
-      if (paymentData.authCode) lines.push(`Autorización: ${paymentData.authCode}`);
-      if (paymentData.operationNumber) lines.push(`Operación: ${paymentData.operationNumber}`);
-      if (paymentMethod === "credito") {
-        lines.push(`Cuotas: ${paymentData.installments || 1}`);
-        if (paymentData.interest) {
-          lines.push(`Interés: ${paymentData.interest}%`);
-        }
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowPaymentPopup(false);
       }
-    }
-
-    if (paymentMethod === "transferencia") {
-      if (paymentData.transferOperationId) {
-        lines.push(`Operación: ${paymentData.transferOperationId}`);
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleConfirmPayment();
       }
+    };
+
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [showPaymentPopup, paymentData]);
+
+  useEffect(() => {
+    if (showPaymentPopup && firstInputRef.current) {
+      firstInputRef.current.focus();
     }
+  }, [showPaymentPopup]);
 
-    if (paymentMethod === "mercadopago") {
-      if (paymentData.mpPaymentId) lines.push(`Pago MP: ${paymentData.mpPaymentId}`);
-      if (paymentData.mpStatus) lines.push(`Estado: ${paymentData.mpStatus}`);
-    }
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "F11") {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    };
 
-    if (paymentMethod === "fiado") {
-      lines.push(`Cliente: ${clients.find(c => c._id === selectedClient)?.name || ""}`);
-    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
 
-    lines.push("--------------------------------");
-    lines.push("Gracias por su compra!");
+  useEffect(() => {
+    const handleChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
 
-    return lines.join("\n");
-  };
+    document.addEventListener("fullscreenchange", handleChange);
+    return () => document.removeEventListener("fullscreenchange", handleChange);
+  }, []);
 
-  const handlePrintTicket = () => {
-    const printWindow = window.open("", "_blank", "width=400,height=600");
-    if (!printWindow) return;
+  useEffect(() => {
+  const t = localStorage.getItem("token");
 
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Ticket</title>
-          <style>
-            body {
-              font-family: monospace;
-              font-size: 12px;
-              white-space: pre;
-              margin: 0;
-              padding: 10px;
-            }
-          </style>
-        </head>
-        <body>
-          ${ticketText.replace(/\n/g, "<br/>")}
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-  };
-
-  const toggleFullscreen = () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch((err) => {
-      console.error("Error al entrar en fullscreen:", err);
-    });
+  if (!t) {
+    router.push("/login");
   } else {
-    document.exitFullscreen();
+    setAuthChecked(true);
   }
+}, []);
+
+
+if (!authChecked) return null;
+
+const handleLogout = () => {
+  // borrar token
+  localStorage.removeItem("token");
+
+  // ir a la página de cierre de caja
+  router.push("/cierre");
 };
 
 
 
+  // ─── 7. RENDER ─────────────────────────────────────────────────────────────
   return (
-  <>
-   <button onClick={toggleFullscreen} className={styles.fullscreenFloating}>
-  {isFullscreen ? (
-    // ICONO DE CONTRAER (el que mandaste)
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-      <path d="M9 4H4v5M4 15v5h5M15 4h5v5M20 15v5h-5" 
-            stroke="white" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-  ) : (
-    // ICONO DE EXPANDIR
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-      <path d="M4 9V4h5M4 15v5h5M20 9V4h-5M20 15v5h-5" 
-            stroke="white" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-  )}
-</button>
-
-
-
-    <div className={styles.mainLayout}>
-      {/* COLUMNA IZQUIERDA */}
-      <div className={styles.leftColumn}>
-        <h1 style={{ marginBottom: 20 }}>Caja</h1>
-
-        <input
-          type="text"
-          placeholder="Escaneá o escribí el nombre..."
-          value={query}
-          onChange={(e) => searchProducts(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className={styles.searchInput}
-        />
-
-        {query.length > 0 && results.length > 0 && (
-          <div className={styles.resultsBox}>
-            {results.map((p, i) => (
-              <div
-                key={p._id}
-                onClick={() => addToCart(p)}
-                className={`${styles.resultItem} ${
-                  selectedIndex === i ? styles.selectedItem : ""
-                }`}
-              >
-                <span>{p.name}</span>
-                <strong>${p.price}</strong>
-              </div>
-            ))}
-          </div>
+    <>
+      <button onClick={toggleFullscreen} className={styles.fullscreenFloating}>
+        {isFullscreen ? (
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M9 4H4v5M4 15v5h5M15 4h5v5M20 15v5h-5"
+              stroke="white"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+        ) : (
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M4 9V4h5M4 15v5h5M20 9V4h-5M20 15v5h-5"
+              stroke="white"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
         )}
+      </button>
 
-        {query.length > 0 && results.length === 0 && (
-          <div className={styles.noResults}>
-            No se encontraron productos
-          </div>
-        )}
+      <div className={styles.mainLayout}>
+        {/* COLUMNA IZQUIERDA */}
+        <div className={styles.leftColumn}>
+          <h1 style={{ marginBottom: 20 }}>Caja</h1>
 
-        <div style={{ marginTop: 40, maxWidth: "350px" }}>
-          <div className={styles.totalLabel}>TOTAL</div>
+          <input
+            type="text"
+            placeholder="Escaneá o escribí el nombre..."
+            value={query}
+            onChange={(e) => searchProducts(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className={styles.searchInput}
+          />
 
-          <div className={styles.totalAmount}>
-            ${total}
-          </div>
-
-          <label className={styles.fieldLabel}>Medio de pago</label>
-          <select
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-            className={styles.paymentSelect}
-          >
-            <option value="efectivo">Efectivo</option>
-            <option value="debito">Débito</option>
-            <option value="credito">Crédito</option>
-            <option value="transferencia">Transferencia</option>
-            <option value="mercadopago">Mercado Pago</option>
-            <option value="fiado">Cuenta corriente (fiado)</option>
-          </select>
-
-          {paymentMethod === "fiado" && (
-            <div style={{ marginTop: "15px" }}>
-              <label className={styles.fieldLabel}>Cliente</label>
-              <select
-                value={selectedClient}
-                onChange={(e) => setSelectedClient(e.target.value)}
-                className={styles.paymentSelect}
-              >
-                <option value="">Elegir cliente...</option>
-                {clients.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+          {query.length > 0 && results.length > 0 && (
+            <div className={styles.resultsBox}>
+              {results.map((p, i) => (
+                <div
+                  key={p._id}
+                  onClick={() => addToCart(p)}
+                  className={`${styles.resultItem} ${
+                    selectedIndex === i ? styles.selectedItem : ""
+                  }`}
+                >
+                  <span>{p.name}</span>
+                  <strong>${p.price}</strong>
+                </div>
+              ))}
             </div>
           )}
 
-          <button onClick={confirmSale} className={styles.confirmBtn}>
-            Confirmar venta
-          </button>
-        </div>
-      </div>
+          {query.length > 0 && results.length === 0 && (
+            <div className={styles.noResults}>No se encontraron productos</div>
+          )}
 
-      {/* COLUMNA DERECHA */}
-      <div className={styles.rightColumn}>
-        <div className={styles.cartHeader}>
-          <h2>Carrito</h2>
+          <div style={{ marginTop: 40, maxWidth: "350px" }}>
+            <div className={styles.totalLabel}>TOTAL</div>
+            <div className={styles.totalAmount}>${total}</div>
 
-          <button onClick={() => setShowConfig(true)}className={styles.configBtn}>⚙️</button>
-        </div>
-
-        <div className={styles.cartBox}>
-          {cart.map((item, i) => (
-            <div key={i} className={styles.cartItem}>
-              <div>
-                <strong>{item.name}</strong>
-                <br />
-                <span className={styles.itemPrice}>${item.price}</span>
-              </div>
-
-              <div className={styles.qtyContainer}>
-                <button
-                  onClick={() => decreaseQuantity(i)}
-                  className={`${styles.qtyBtn} ${styles.qtyMinus}`}
-                >
-                  -
-                </button>
-
-                <span className={styles.qtyNumber}>
-                  {item.quantity}
-                </span>
-
-                <button
-                  onClick={() => increaseQuantity(i)}
-                  className={`${styles.qtyBtn} ${styles.qtyPlus}`}
-                >
-                  +
-                </button>
-
-                <button
-                  onClick={() => removeItem(i)}
-                  className={styles.deleteBtn}
-                >
-                  ❌
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* POPUP CONFIG */}
-      {showConfig && (
-        <div className={styles.popupOverlay}>
-          <div className={styles.popupBox}>
-            <h2 style={{ marginBottom: "20px", textAlign: "center" }}>
-              Configuración
-            </h2>
-
-            <button
-              onClick={() => router.push("/deudas")}
-              className={styles.popupBtn}
+            <label className={styles.fieldLabel}>Medio de pago</label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className={styles.paymentSelect}
             >
-              📘 Clientes deudores
-            </button>
-
-            <button
-              onClick={() => router.push("/productos")}
-              className={styles.popupBtn}
-            >
-              📦 Productos
-            </button>
-
-            <button
-              onClick={() => router.push("/proveedores")}
-              className={styles.popupBtn}
-            >
-              🏭 Proveedores
-            </button>
-
-            <button
-              onClick={() => setShowConfig(false)}
-              className={styles.popupClose}
-            >
-              ❌ Cerrar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* POPUP DATOS DE PAGO */}
-      {showPaymentPopup && (
-        <div className={styles.popupOverlay}>
-          <div className={styles.popupBox}>
-            <h2 className={styles.popupTitle}>
-  Datos de pago ({paymentMethod})
-</h2>
-
-
-            {paymentMethod === "efectivo" && (
-              <>
-                <label className={styles.fieldLabel}>Monto recibido</label>
-                <input
-                  ref={firstInputRef}
-                  type="number"
-                  className={styles.searchInput}
-                  value={paymentData.receivedAmount ?? total}
-                  onChange={(e) =>
-                    setPaymentData({
-                      ...paymentData,
-                      receivedAmount: Number(e.target.value),
-                      change: Number(e.target.value) - total,
-                    })
-                  }
-                />
-                <div style={{ marginTop: 8, color: "#e8eaf0" }}>
-                  Vuelto: ${paymentData.change ?? 0}
-                </div>
-              </>
-            )}
-
-            {(paymentMethod === "debito" || paymentMethod === "credito") && (
-              <>
-                <label className={styles.fieldLabel}>Marca de tarjeta</label>
-                <input
-                  ref={firstInputRef}
-                  type="text"
-                  className={styles.searchInput}
-                  value={paymentData.cardBrand || ""}
-                  onChange={(e) =>
-                    setPaymentData({ ...paymentData, cardBrand: e.target.value })
-                  }
-                />
-
-                <label className={styles.fieldLabel}>Últimos 4 dígitos</label>
-                <input
-                  ref={firstInputRef}
-                  type="text"
-                  className={styles.searchInput}
-                  value={paymentData.cardLast4 || ""}
-                  onChange={(e) =>
-                    setPaymentData({ ...paymentData, cardLast4: e.target.value })
-                  }
-                />
-
-                <label className={styles.fieldLabel}>Código de autorización</label>
-                <input
-                  ref={firstInputRef}
-                  type="text"
-                  className={styles.searchInput}
-                  value={paymentData.authCode || ""}
-                  onChange={(e) =>
-                    setPaymentData({ ...paymentData, authCode: e.target.value })
-                  }
-                />
-
-                <label className={styles.fieldLabel}>Número de operación</label>
-                <input
-                  ref={firstInputRef}
-                  type="text"
-                  className={styles.searchInput}
-                  value={paymentData.operationNumber || ""}
-                  onChange={(e) =>
-                    setPaymentData({
-                      ...paymentData,
-                      operationNumber: e.target.value,
-                    })
-                  }
-                />
-
-                {paymentMethod === "credito" && (
-                  <>
-                    <label className={styles.fieldLabel}>Cuotas</label>
-                    <input
-                      ref={firstInputRef}
-                      type="number"
-                      className={styles.searchInput}
-                      value={paymentData.installments || 1}
-                      onChange={(e) =>
-                        setPaymentData({
-                          ...paymentData,
-                          installments: Number(e.target.value),
-                        })
-                      }
-                    />
-
-                    <label className={styles.fieldLabel}>Interés (%)</label>
-                    <input
-                      ref={firstInputRef}
-                      type="number"
-                      className={styles.searchInput}
-                      value={paymentData.interest || 0}
-                      onChange={(e) =>
-                        setPaymentData({
-                          ...paymentData,
-                          interest: Number(e.target.value),
-                        })
-                      }
-                    />
-                  </>
-                )}
-              </>
-            )}
-
-            {paymentMethod === "transferencia" && (
-              <>
-                <label className={styles.fieldLabel}>N° de operación</label>
-                <input
-                  type="text"
-                  className={styles.searchInput}
-                  value={paymentData.transferOperationId || ""}
-                  onChange={(e) =>
-                    setPaymentData({
-                      ...paymentData,
-                      transferOperationId: e.target.value,
-                    })
-                  }
-                />
-              </>
-            )}
-
-            {paymentMethod === "mercadopago" && (
-              <>
-                <label className={styles.fieldLabel}>ID de pago</label>
-                <input
-                  type="text"
-                  className={styles.searchInput}
-                  value={paymentData.mpPaymentId || ""}
-                  onChange={(e) =>
-                    setPaymentData({
-                      ...paymentData,
-                      mpPaymentId: e.target.value,
-                    })
-                  }
-                />
-
-                <label className={styles.fieldLabel}>Estado</label>
-                <input
-                  type="text"
-                  className={styles.searchInput}
-                  value={paymentData.mpStatus || "approved"}
-                  onChange={(e) =>
-                    setPaymentData({
-                      ...paymentData,
-                      mpStatus: e.target.value,
-                    })
-                  }
-                />
-              </>
-            )}
+              <option value="efectivo">Efectivo</option>
+              <option value="debito">Débito</option>
+              <option value="credito">Crédito</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="mercadopago">Mercado Pago</option>
+              <option value="fiado">Cuenta corriente (fiado)</option>
+            </select>
 
             {paymentMethod === "fiado" && (
-              <div style={{ marginTop: 10, color: "#e8eaf0" }}>
-                La venta se registrará como cuenta corriente del cliente.
+              <div style={{ marginTop: "15px" }}>
+                <label className={styles.fieldLabel}>Cliente</label>
+                <select
+                  value={selectedClient}
+                  onChange={(e) => setSelectedClient(e.target.value)}
+                  className={styles.paymentSelect}
+                >
+                  <option value="">Elegir cliente...</option>
+                  {clients.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 
-            <button
-              onClick={handleConfirmPayment}
-              className={styles.confirmBtn}
-              style={{ marginTop: 16 }}
-            >
-              Guardar venta y generar ticket
-            </button>
-
-            <button
-              onClick={() => setShowPaymentPopup(false)}
-              className={styles.popupClose}
-            >
-              Cancelar
+            <button onClick={confirmSale} className={styles.confirmBtn}>
+              Confirmar venta
             </button>
           </div>
         </div>
-      )}
 
-      {/* POPUP TICKET */}
-      {showTicketPopup && (
-        <div className={styles.popupOverlay}>
-          <div className={styles.popupBox}>
-            <h2 style={{ marginBottom: 10, textAlign: "center" }}>
-              Ticket
-            </h2>
-
-            <div
-              style={{
-                background: "#000",
-                color: "#fff",
-                padding: "10px",
-                borderRadius: "8px",
-                fontFamily: "monospace",
-                fontSize: "12px",
-                whiteSpace: "pre-wrap",
-                maxHeight: "300px",
-                overflowY: "auto",
-              }}
+        {/* COLUMNA DERECHA */}
+        <div className={styles.rightColumn}>
+          <div className={styles.cartHeader}>
+            <h2>Carrito</h2>
+            <button
+              onClick={() => setShowConfig(true)}
+              className={styles.configBtn}
             >
-              {ticketText}
+              ⚙️
+            </button>
+          </div>
+
+          <div className={styles.cartBox}>
+            {cart.map((item, i) => (
+              <div key={i} className={styles.cartItem}>
+                <div>
+                  <strong>{item.name}</strong>
+                  <br />
+                  <span className={styles.itemPrice}>${item.price}</span>
+                </div>
+
+                <div className={styles.qtyContainer}>
+                  <button
+                    onClick={() => decreaseQuantity(i)}
+                    className={`${styles.qtyBtn} ${styles.qtyMinus}`}
+                  >
+                    -
+                  </button>
+                  <span className={styles.qtyNumber}>{item.quantity}</span>
+                  <button
+                    onClick={() => increaseQuantity(i)}
+                    className={`${styles.qtyBtn} ${styles.qtyPlus}`}
+                  >
+                    +
+                  </button>
+                  <button
+                    onClick={() => removeItem(i)}
+                    className={styles.deleteBtn}
+                  >
+                    ❌
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* POPUP CONFIG */}
+        {showConfig && (
+          <div className={styles.popupOverlay}>
+            <div className={styles.popupBox}>
+              <button
+                onClick={() => setShowConfig(false)}
+                  style={{
+                    position: "absolute",
+                    top: "10px",
+                    right: "10px",
+                    background: "transparent",
+                    border: "none",
+                    fontSize: "22px",
+                    cursor: "pointer",
+                  }}> ✖ </button>
+
+              <h2 style={{ marginBottom: "20px", textAlign: "center" }}>
+                Configuración
+              </h2>
+
+              <button
+                onClick={() => router.push("/deudas")}
+                className={styles.popupBtn}
+              >
+                📘 Clientes deudores
+              </button>
+
+              <button
+                onClick={() => router.push("/productos")}
+                className={styles.popupBtn}
+              >
+                📦 Productos
+              </button>
+
+              <button
+                onClick={() => router.push("/proveedores")}
+                className={styles.popupBtn}
+              >
+                🏭 Proveedores
+              </button>
+
+              <button onClick={handleLogout} className={styles.popupClose}>
+  🔒 Cerrar sesión
+</button>
+
             </div>
-
-            <button
-              onClick={handlePrintTicket}
-              className={styles.confirmBtn}
-              style={{ marginTop: 12 }}
-            >
-              Imprimir ticket
-            </button>
-
-            <button
-              onClick={() => setShowTicketPopup(false)}
-              className={styles.popupClose}
-            >
-              Cerrar
-            </button>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+
+        {/* POPUP DATOS DE PAGO */}
+        {showPaymentPopup && (
+          <div className={styles.popupOverlay}>
+            <div className={styles.popupBox}>
+              <h2 className={styles.popupTitle}>
+                Datos de pago ({paymentMethod})
+              </h2>
+
+              {paymentMethod === "efectivo" && (
+                <>
+                  <label className={styles.fieldLabel}>Monto recibido</label>
+                  <input
+                    ref={firstInputRef}
+                    type="number"
+                    className={styles.searchInput}
+                    value={paymentData.receivedAmount ?? total}
+                    onChange={(e) =>
+                      setPaymentData({
+                        ...paymentData,
+                        receivedAmount: Number(e.target.value),
+                        change: Number(e.target.value) - total,
+                      })
+                    }
+                  />
+                  <div style={{ marginTop: 8, color: "#e8eaf0" }}>
+                    Vuelto: ${paymentData.change ?? 0}
+                  </div>
+                </>
+              )}
+
+              {(paymentMethod === "debito" || paymentMethod === "credito") && (
+                <>
+                  <label className={styles.fieldLabel}>Marca de tarjeta</label>
+                  <input
+                    ref={firstInputRef}
+                    type="text"
+                    className={styles.searchInput}
+                    value={paymentData.cardBrand || ""}
+                    onChange={(e) =>
+                      setPaymentData({
+                        ...paymentData,
+                        cardBrand: e.target.value,
+                      })
+                    }
+                  />
+
+                  <label className={styles.fieldLabel}>Últimos 4 dígitos</label>
+                  <input
+                    ref={firstInputRef}
+                    type="text"
+                    className={styles.searchInput}
+                    value={paymentData.cardLast4 || ""}
+                    onChange={(e) =>
+                      setPaymentData({
+                        ...paymentData,
+                        cardLast4: e.target.value,
+                      })
+                    }
+                  />
+
+                  <label className={styles.fieldLabel}>
+                    Código de autorización
+                  </label>
+                  <input
+                    ref={firstInputRef}
+                    type="text"
+                    className={styles.searchInput}
+                    value={paymentData.authCode || ""}
+                    onChange={(e) =>
+                      setPaymentData({
+                        ...paymentData,
+                        authCode: e.target.value,
+                      })
+                    }
+                  />
+
+                  <label className={styles.fieldLabel}>
+                    Número de operación
+                  </label>
+                  <input
+                    ref={firstInputRef}
+                    type="text"
+                    className={styles.searchInput}
+                    value={paymentData.operationNumber || ""}
+                    onChange={(e) =>
+                      setPaymentData({
+                        ...paymentData,
+                        operationNumber: e.target.value,
+                      })
+                    }
+                  />
+
+                  {paymentMethod === "credito" && (
+                    <>
+                      <label className={styles.fieldLabel}>Cuotas</label>
+                      <input
+                        ref={firstInputRef}
+                        type="number"
+                        className={styles.searchInput}
+                        value={paymentData.installments || 1}
+                        onChange={(e) =>
+                          setPaymentData({
+                            ...paymentData,
+                            installments: Number(e.target.value),
+                          })
+                        }
+                      />
+
+                      <label className={styles.fieldLabel}>Interés (%)</label>
+                      <input
+                        ref={firstInputRef}
+                        type="number"
+                        className={styles.searchInput}
+                        value={paymentData.interest || 0}
+                        onChange={(e) =>
+                          setPaymentData({
+                            ...paymentData,
+                            interest: Number(e.target.value),
+                          })
+                        }
+                      />
+                    </>
+                  )}
+                </>
+              )}
+
+              {paymentMethod === "transferencia" && (
+                <>
+                  <label className={styles.fieldLabel}>N° de operación</label>
+                  <input
+                    type="text"
+                    className={styles.searchInput}
+                    value={paymentData.transferOperationId || ""}
+                    onChange={(e) =>
+                      setPaymentData({
+                        ...paymentData,
+                        transferOperationId: e.target.value,
+                      })
+                    }
+                  />
+                </>
+              )}
+
+              {paymentMethod === "mercadopago" && (
+                <>
+                  <label className={styles.fieldLabel}>ID de pago</label>
+                  <input
+                    type="text"
+                    className={styles.searchInput}
+                    value={paymentData.mpPaymentId || ""}
+                    onChange={(e) =>
+                      setPaymentData({
+                        ...paymentData,
+                        mpPaymentId: e.target.value,
+                      })
+                    }
+                  />
+
+                  <label className={styles.fieldLabel}>Estado</label>
+                  <input
+                    type="text"
+                    className={styles.searchInput}
+                    value={paymentData.mpStatus || "approved"}
+                    onChange={(e) =>
+                      setPaymentData({
+                        ...paymentData,
+                        mpStatus: e.target.value,
+                      })
+                    }
+                  />
+                </>
+              )}
+
+              {paymentMethod === "fiado" && (
+                <div style={{ marginTop: 10, color: "#e8eaf0" }}>
+                  La venta se registrará como cuenta corriente del cliente.
+                </div>
+              )}
+
+              <button
+                onClick={handleConfirmPayment}
+                className={styles.confirmBtn}
+                style={{ marginTop: 16 }}
+              >
+                Guardar venta y generar ticket
+              </button>
+
+              <button
+                onClick={() => setShowPaymentPopup(false)}
+                className={styles.popupClose}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* POPUP TICKET */}
+        {showTicketPopup && (
+          <div className={styles.popupOverlay}>
+            <div className={styles.popupBox}>
+              <h2 style={{ marginBottom: 10, textAlign: "center" }}>Ticket</h2>
+
+              <div
+                style={{
+                  background: "#000",
+                  color: "#fff",
+                  padding: "10px",
+                  borderRadius: "8px",
+                  fontFamily: "monospace",
+                  fontSize: "12px",
+                  whiteSpace: "pre-wrap",
+                  maxHeight: "300px",
+                  overflowY: "auto",
+                }}
+              >
+                {ticketText}
+              </div>
+
+              <button
+                onClick={handlePrintTicket}
+                className={styles.confirmBtn}
+                style={{ marginTop: 12 }}
+              >
+                Imprimir ticket
+              </button>
+
+              <button
+                onClick={() => setShowTicketPopup(false)}
+                className={styles.popupClose}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }

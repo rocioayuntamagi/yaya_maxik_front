@@ -369,6 +369,8 @@ html, body {
   border-radius: 14px;
   width: 360px;
   border: 1px solid var(--border-accent);
+  position: relative;
+
 }
 
 .popupBtn {

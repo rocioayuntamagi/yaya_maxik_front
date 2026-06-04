@@ -11,7 +11,8 @@ export default function Deudas() {
       : "";
 
   const [clients, setClients] = useState<any[]>([]);
-
+ 
+ 
   // Proteger ruta
   useEffect(() => {
     const t = localStorage.getItem("token");
