@@ -1,40 +1,46 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import ProductForm from "./productForm";
+import styles from "./productos.module.css";
 
-// Tipo de producto
+// ⭐ TIPO DE PRODUCTO (evita todos tus errores)
 type Producto = {
   _id: string;
   name: string;
   price: number;
   stock: number;
+  category?: string;
 };
 
 export default function ProductosPage() {
-  const router = useRouter();
-
+  // ⭐ TIPADO CORRECTO DEL ESTADO
   const [productos, setProductos] = useState<Producto[]>([]);
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [stock, setStock] = useState("");
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [search, setSearch] = useState("");
 
-  // Cargar productos
+  // ⭐ CARGAR PRODUCTOS
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return router.push("/login");
-
     const fetchProducts = async () => {
       try {
+        const token = localStorage.getItem("token");
+
         const res = await fetch("http://localhost:4000/api/products", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        const data: Producto[] = await res.json();
-        setProductos(data);
-      } catch (error) {
-        console.error("Error cargando productos:", error);
+        const data = await res.json();
+
+        // ⭐ VALIDACIÓN + TIPADO
+        if (Array.isArray(data)) {
+          const productosValidos = data.filter(
+            (p: any) => p && typeof p.name === "string"
+          );
+          setProductos(productosValidos);
+        }
+      } catch (err) {
+        console.error("Error cargando productos:", err);
       } finally {
         setLoading(false);
       }
@@ -43,115 +49,63 @@ export default function ProductosPage() {
     fetchProducts();
   }, []);
 
-  // Crear producto
-  const crearProducto = async () => {
-    const token = localStorage.getItem("token");
+  // ⭐ FILTRO DE BÚSQUEDA
+  const productosFiltrados = productos.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
 
-    const res = await fetch("http://localhost:4000/api/products", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        name,
-        price: Number(price),
-        stock: Number(stock),
-      }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      setProductos([...productos, data.product]);
-      setName("");
-      setPrice("");
-      setStock("");
-    } else {
-      alert(data.message || "Error al crear producto");
-    }
+  // ⭐ CUANDO SE CREA UN PRODUCTO DESDE EL MODAL
+  const handleProductCreated = (nuevoProducto: Producto) => {
+    setProductos((prev) => [...prev, nuevoProducto]);
   };
 
-  if (loading) return <p style={{ padding: 30 }}>Cargando productos...</p>;
-
   return (
-    <div style={{ padding: 30 }}>
-      <h1>Productos</h1>
-
-      {/* Formulario */}
-      <div
-        style={{
-          marginTop: 20,
-          padding: 20,
-          border: "1px solid #ccc",
-          borderRadius: 8,
-          width: 350,
-        }}
-      >
-        <h3>Agregar producto</h3>
-
+    <div className={styles.page}>
+      {/* HEADER */}
+      <div className={styles.header}>
         <input
-          placeholder="Nombre"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{ width: "100%", padding: 8, marginTop: 10 }}
+          className={styles.search}
+          placeholder="Buscar producto..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
         />
 
-        <input
-          placeholder="Precio"
-          type="number"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          style={{ width: "100%", padding: 8, marginTop: 10 }}
-        />
-
-        <input
-          placeholder="Stock"
-          type="number"
-          value={stock}
-          onChange={(e) => setStock(e.target.value)}
-          style={{ width: "100%", padding: 8, marginTop: 10 }}
-        />
-
-        <button
-          onClick={crearProducto}
-          style={{
-            marginTop: 15,
-            padding: "10px 20px",
-            cursor: "pointer",
-            width: "100%",
-          }}
-        >
-          ➕ Crear producto
+        <button className={styles.addBtn} onClick={() => setShowModal(true)}>
+          ➕ Agregar producto
         </button>
       </div>
 
-      {/* Lista */}
-      <h2 style={{ marginTop: 30 }}>Listado</h2>
-
-      {productos.length === 0 ? (
-        <p>No hay productos cargados.</p>
+      {/* GRILLA */}
+      {loading ? (
+        <p className={styles.loading}>Cargando productos...</p>
       ) : (
-        <ul>
-          {productos.map((p) => (
-            <li key={p._id}>
-              {p.name} — ${p.price} — Stock: {p.stock}
-            </li>
+        <div className={styles.grid}>
+          {productosFiltrados.map((p) => (
+            <div key={p._id} className={styles.card}>
+              <h3>{p.name}</h3>
+              <p className={styles.price}>${p.price}</p>
+              <p className={styles.stock}>Stock: {p.stock}</p>
+
+              <div className={styles.cardActions}>
+                <button className={styles.editBtn}>Editar</button>
+                <button className={styles.deleteBtn}>Eliminar</button>
+              </div>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
 
-      <button
-        onClick={() => router.push("/")}
-        style={{
-          marginTop: 30,
-          padding: "10px 20px",
-          cursor: "pointer",
-          background: "#ccc",
-        }}
-      >
-        ⬅ Volver
-      </button>
+      {/* MODAL */}
+      {showModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <ProductForm
+              onClose={() => setShowModal(false)}
+              onProductCreated={handleProductCreated}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
