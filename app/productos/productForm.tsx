@@ -2,34 +2,44 @@
 
 import { useState } from "react";
 import styles from "./productos.module.css";
+import { Producto } from "../types/producto"; // ⭐ Tipo unificado
 
-type Producto = {
-  _id: string;
-  name: string;
-  price: number;
-  stock: number;
-  category?: string;
-};
-
-// ⭐ Tipado de props del formulario
 type ProductFormProps = {
   onClose: () => void;
   onProductCreated: (producto: Producto) => void;
 };
 
 export default function ProductForm({ onClose, onProductCreated }: ProductFormProps) {
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [stock, setStock] = useState("");
-  const [category, setCategory] = useState("");
+  const [form, setForm] = useState<Producto>({
+    name: "",
+    description: "",
+    category: "",
+    subcategory: "",
+    brand: "",
+    barcode: "",
+    provider: "",
+    price: 0,
+    cost: 0,
+    stock: 0,
+    minStock: 0,
+    unit: "",
+    notes: "",
+  });
+
   const [error, setError] = useState("");
 
-  // ⭐ Tipado correcto del evento
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setError("");
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (!name || !price || !stock) {
-      setError("Todos los campos obligatorios deben completarse");
+    if (!form.name || !form.price || !form.stock || !form.category) {
+      setError("Los campos obligatorios deben completarse");
       return;
     }
 
@@ -42,19 +52,14 @@ export default function ProductForm({ onClose, onProductCreated }: ProductFormPr
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name,
-          price: Number(price),
-          stock: Number(stock),
-          category,
-        }),
+        body: JSON.stringify(form),
       });
 
       const data = await res.json();
 
       if (data && data.name) {
-        onProductCreated(data); // ⭐ Actualiza la grilla
-        onClose(); // ⭐ Cierra el modal
+        onProductCreated(data);
+        onClose();
       } else {
         setError("Error al crear el producto");
       }
@@ -71,44 +76,119 @@ export default function ProductForm({ onClose, onProductCreated }: ProductFormPr
 
       <input
         className={styles.input}
-        placeholder="Nombre"
-        value={name}
-        onChange={(e) => {
-          setName(e.target.value);
-          setError("");
-        }}
+        name="name"
+        placeholder="Nombre *"
+        value={form.name}
+        onChange={handleChange}
+      />
+
+      <textarea
+        className={styles.input}
+        name="description"
+        placeholder="Descripción"
+        value={form.description}
+        onChange={handleChange}
+      />
+
+      <select
+        className={styles.input}
+        name="category"
+        value={form.category}
+        onChange={handleChange}
+      >
+        <option value="">Categoría *</option>
+        <option value="bebidas">Bebidas</option>
+        <option value="golosinas">Golosinas</option>
+        <option value="almacen">Almacén</option>
+        <option value="limpieza">Limpieza</option>
+        <option value="lacteos">Lácteos</option>
+        <option value="panaderia">Panadería</option>
+        <option value="bazar">Bazar</option>
+        <option value="cuidado_personal">Cuidado personal</option>
+      </select>
+
+      <input
+        className={styles.input}
+        name="subcategory"
+        placeholder="Subcategoría"
+        value={form.subcategory}
+        onChange={handleChange}
       />
 
       <input
         className={styles.input}
-        placeholder="Precio"
+        name="brand"
+        placeholder="Marca"
+        value={form.brand}
+        onChange={handleChange}
+      />
+
+      <input
+        className={styles.input}
+        name="barcode"
+        placeholder="Código de barras"
+        value={form.barcode}
+        onChange={handleChange}
+      />
+
+      <input
+        className={styles.input}
+        name="provider"
+        placeholder="Proveedor"
+        value={form.provider}
+        onChange={handleChange}
+      />
+
+      <input
+        className={styles.input}
+        name="price"
         type="number"
-        value={price}
-        onChange={(e) => {
-          setPrice(e.target.value);
-          setError("");
-        }}
+        placeholder="Precio de venta *"
+        value={form.price}
+        onChange={handleChange}
       />
 
       <input
         className={styles.input}
-        placeholder="Stock"
+        name="cost"
         type="number"
-        value={stock}
-        onChange={(e) => {
-          setStock(e.target.value);
-          setError("");
-        }}
+        placeholder="Costo"
+        value={form.cost}
+        onChange={handleChange}
       />
 
       <input
         className={styles.input}
-        placeholder="Categoría"
-        value={category}
-        onChange={(e) => {
-          setCategory(e.target.value);
-          setError("");
-        }}
+        name="stock"
+        type="number"
+        placeholder="Stock *"
+        value={form.stock}
+        onChange={handleChange}
+      />
+
+      <input
+        className={styles.input}
+        name="minStock"
+        type="number"
+        placeholder="Stock mínimo"
+        value={form.minStock}
+        onChange={handleChange}
+      />
+
+      <input
+        className={styles.input}
+        name="unit"
+        placeholder="Unidad (unidad, kg, litro, pack...)"
+        value={form.unit}
+        onChange={handleChange}
+      />
+
+      <textarea
+        className={styles.input}
+        name="notes"
+        placeholder="Notas internas"
+        value={form.notes}
+        onChange={handleChange}
       />
 
       <button className={styles.saveBtn} type="submit">

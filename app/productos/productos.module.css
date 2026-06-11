@@ -14,17 +14,21 @@
   --radius:        10px;
 }
 
+/* ── PÁGINA ── */
 .page {
   min-height: 100vh;
   background: var(--bg-base);
+  padding: 20px;
+  color: #fff;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
   position: relative;
   overflow-x: hidden;
-
 }
 
+/* ── CANVAS ANIMADO ── */
 .canvas {
   position: fixed;
   top: 0;
@@ -32,144 +36,209 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: -1;
+  z-index: 0;
 }
 
-.container {
+/* ── HEADER ── */
+.header {
   position: relative;
-  z-index: 10;
-  padding: 40px 20px;
+  z-index: 1;
   width: 100%;
-  max-width: 600px;
+  max-width: 1200px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
 }
 
-.title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 4px;
+.search {
+  width: 260px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #2a2a2a;
+  color: #fff;
 }
 
-.subtitle {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 24px;
+.addBtn {
+  background: #4caf50;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.2s;
 }
 
+.addBtn:hover { background: #45a049; }
+
+/* ── GRILLA ── */
+.grid {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1200px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 20px;
+  justify-items: center;
+}
+
+/* ── CARD PRODUCTO ── */
 .card {
-  background: rgba(32, 36, 47, 0.85);
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 220px;
+  background: rgba(28, 28, 28, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  padding: 24px;
-  border-radius: 14px;
+  padding: 18px;
+  border-radius: 10px;
   border: 1px solid var(--border);
-  margin-bottom: 20px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.4);
+  box-sizing: border-box;
+  transition: 0.2s;
+   cursor: pointer; /* ⭐ ahora parece un botón */
+  transition: 0.2s;
 }
 
-.fieldLabel {
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  display: block;
+.card:hover {
+ transform: translateY(-4px);
+  box-shadow: 0 0 14px rgba(0,0,0,0.6);
+}
+
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.price {
+  font-size: 20px;
+  font-weight: bold;
   margin-bottom: 6px;
-  margin-top: 14px;
+  color: #4caf50;
 }
 
-.fieldLabel:first-child {
-  margin-top: 0;
+.stock {
+  font-size: 14px;
+  opacity: 0.8;
+  margin-bottom: 12px;
+}
+
+/* ── ACCIONES CARD ── */
+.cardActions {
+  display: flex;
+  justify-content: space-between;
+}
+
+.editBtn,
+.deleteBtn {
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+.editBtn           { background: #2196f3; color: #fff; }
+.editBtn:hover     { background: #1e88e5; }
+.deleteBtn         { background: #f44336; color: #fff; }
+.deleteBtn:hover   { background: #e53935; }
+
+/* ── LOADING ── */
+.loading {
+  position: relative;
+  z-index: 1;
+  color: var(--text-muted);
+}
+
+/* ── MODAL ── */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.modal {
+  background: #1f1f1f;
+  padding: 25px;
+  border-radius: 12px;
+  width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal::-webkit-scrollbar       { width: 8px; }
+.modal::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+.modal::-webkit-scrollbar-thumb:hover { background: #666; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── FORMULARIO (dentro del modal) ── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form h2 {
+  margin: 0 0 10px;
+  color: #fff;
+  text-align: center;
 }
 
 .input {
   width: 100%;
-  padding: 12px 14px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: #fff;
   font-size: 15px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text-primary);
-  outline: none;
   box-sizing: border-box;
-  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(108, 123, 255, 0.12);
+  outline: none;
+  border-color: #4caf50;
 }
 
-.input::placeholder {
-  color: var(--border-accent);
-}
-
-.button {
+.textarea {
   width: 100%;
-  padding: 13px;
-  margin-top: 20px;
-  background: var(--green);
-  border: none;
-  color: #0a1f12;
-  cursor: pointer;
-  border-radius: var(--radius);
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #1c1c1c;
+  color: #f5f5f5;
+  min-height: 80px;
+  resize: vertical;
   font-size: 16px;
-  font-weight: 600;
-  transition: opacity 0.2s, transform 0.1s;
+  box-sizing: border-box;
 }
 
-.button:hover  { opacity: 0.88; }
-.button:active { transform: scale(0.98); }
-
-.list {
-  margin-top: 0;
-  padding-left: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+select.input {
+  appearance: none;
+  background: #2a2a2a url("data:image/svg+xml;utf8,<svg fill='white' height='20' width='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'><polygon points='0,0 20,0 10,10'/></svg>") no-repeat right 10px center;
+  background-size: 12px;
 }
 
-.list li {
-  list-style: none;
-  background: rgba(32, 36, 47, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 14px 16px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  font-size: 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.listItemName {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.listItemPrice {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.backBtn {
-  margin-top: 24px;
-  padding: 11px 20px;
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
-  cursor: pointer;
-  border-radius: var(--radius);
-  font-size: 14px;
-  transition: background 0.2s, color 0.2s;
-}
-
-.backBtn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
+/* ── PRECIO CON SÍMBOLO ── */
 .priceWrapper {
   position: relative;
   margin-top: 10px;
@@ -187,46 +256,16 @@
 
 .inputPrice {
   width: 100%;
-  padding: 10px 12px 10px 32px; /* espacio para el $ */
-  margin-top: 5px;
+  padding: 10px 12px 10px 32px;
   border-radius: 6px;
   border: 1px solid #444;
   background: #1c1c1c;
   color: #f5f5f5;
   font-size: 16px;
+  box-sizing: border-box;
 }
 
-.input {
-  width: 100%;
-  padding: 10px;
-  margin-top: 5px;
-  border-radius: 6px;
-  border: 1px solid #444;
-  background: #1c1c1c;
-  color: #f5f5f5;
-  font-size: 16px;
-}
-
-.textarea {
-  width: 100%;
-  padding: 10px;
-  margin-top: 5px;
-  border-radius: 6px;
-  border: 1px solid #444;
-  background: #1c1c1c;
-  color: #f5f5f5;
-  min-height: 80px;
-  resize: vertical;
-  font-size: 16px;
-}
-
-select.input {
-  appearance: none;
-  background: #1c1c1c url("data:image/svg+xml;utf8,<svg fill='white' height='20' width='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'><polygon points='0,0 20,0 10,10'/></svg>") no-repeat right 10px center;
-  background-size: 12px;
-  color: #f5f5f5;
-}
-
+/* ── EXTRAS ── */
 .extraBtn {
   margin-top: 15px;
   padding: 10px;
@@ -239,9 +278,7 @@ select.input {
   transition: 0.2s;
 }
 
-.extraBtn:hover {
-  background: #3a3a3a;
-}
+.extraBtn:hover { background: #3a3a3a; }
 
 .extrasBox {
   margin-top: 15px;
@@ -251,6 +288,46 @@ select.input {
   border-radius: 8px;
 }
 
+/* ── BOTONES MODAL ── */
+.saveBtn {
+  background: #4caf50;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: bold;
+  transition: 0.2s;
+}
+
+.saveBtn:hover { background: #45a049; }
+
+.closeBtn {
+  background: #777;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  transition: 0.2s;
+}
+
+.closeBtn:hover { background: #666; }
+
+.closeIcon {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* ── MENSAJES ── */
 .errorMsg {
   background: #ff3b3b22;
   color: #ff6b6b;
@@ -259,4 +336,17 @@ select.input {
   border-radius: 6px;
   margin-bottom: 10px;
   font-size: 14px;
+}
+
+.error {
+  color: #ff6b6b;
+  font-size: 14px;
+  text-align: center;
+}
+
+.cardHint {
+  font-size: 13px;
+  opacity: 0.7;
+  margin-bottom: 10px;
+  text-align: center;
 }
