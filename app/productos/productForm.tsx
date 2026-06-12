@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "./productos.module.css";
 import { Producto } from "../types/producto"; // ⭐ Tipo unificado
 
@@ -10,6 +10,22 @@ type ProductFormProps = {
 };
 
 export default function ProductForm({ onClose, onProductCreated }: ProductFormProps) {
+
+useEffect(() => {
+  const handleEsc = (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      onClose();
+    }
+  };
+
+  window.addEventListener("keydown", handleEsc);
+  return () => {
+    window.removeEventListener("keydown", handleEsc);
+  };
+}, [onClose]);
+
+
+
   const [form, setForm] = useState<Producto>({
     name: "",
     description: "",

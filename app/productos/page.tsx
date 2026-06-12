@@ -5,6 +5,8 @@ import ProductForm from "./productForm";
 import ProductDetail from "./productDetail"; // ⭐ nuevo componente
 import styles from "./productos.module.css";
 import { Producto } from "../types/producto";
+import { useRouter } from "next/navigation";
+
 
 export default function ProductosPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -19,6 +21,8 @@ export default function ProductosPage() {
 
   const [search, setSearch] = useState("");
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const router = useRouter();
 
   // ⭐ Animación de partículas (NO TOCADO)
   useEffect(() => {
@@ -121,8 +125,60 @@ export default function ProductosPage() {
     setProductos((prev) => [...prev, nuevoProducto]);
   };
 
+  const handleProductUpdate = async (updatedProduct: Producto) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(`http://localhost:4000/api/products/${updatedProduct._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(updatedProduct),
+    });
+
+    const data = await res.json();
+
+    // ⭐ Actualizar el estado local
+    setProductos((prev) =>
+      prev.map((p) => (p._id === data._id ? data : p))
+    );
+
+  } catch (err) {
+    console.error("Error actualizando producto:", err);
+  }
+};
+
+const handleProductDelete = async (id: string) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    await fetch(`http://localhost:4000/api/products/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    // actualizar estado local
+    setProductos((prev) => prev.filter((p) => p._id !== id));
+  } catch (err) {
+    console.error("Error eliminando producto:", err);
+  }
+};
+
+
   return (
     <div className={styles.page}>
+
+      <button
+  className={styles.circleBtn}
+  onClick={() => router.push("/caja")}
+>
+  ←
+</button>
+
       <canvas ref={canvasRef} className={styles.canvas} />
 
       {/* HEADER */}
@@ -163,14 +219,15 @@ export default function ProductosPage() {
 
               <div className={styles.cardActions}>
                 <button
-                  className={styles.deleteBtn}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // lógica de eliminar
-                  }}
-                >
-                  Eliminar
-                </button>
+  className={styles.deleteBtn}
+  onClick={(e) => {
+    e.stopPropagation();
+    handleProductDelete(p._id!);
+  }}
+>
+  Eliminar
+</button>
+
               </div>
             </div>
           ))}
@@ -214,6 +271,7 @@ export default function ProductosPage() {
                 setSelectedProduct(null);
                 setShowDetailModal(false);
               }}
+              onSave={handleProductUpdate} 
             />
           </div>
         </div>
