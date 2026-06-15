@@ -420,3 +420,127 @@ select.input {
   border-color: #777;
   transform: scale(1.05);
 }
+
+.page {
+  padding: 30px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.topRight {
+  display: flex;
+  gap: 12px;
+}
+
+.search {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: white;
+}
+
+.addBtn {
+  padding: 10px 16px;
+  background: #6c7bff;
+  border: none;
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(12px);
+  border-radius: 14px;
+  padding: 16px;
+  transition: 0.25s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+}
+
+.imageBox {
+  width: 100%;
+  height: 140px;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.imageBox img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.info {
+  margin-bottom: 12px;
+}
+
+.name {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.price {
+  font-size: 18px;
+  margin-top: 4px;
+}
+
+.stock {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.editBtn,
+.pauseBtn,
+.deleteBtn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.editBtn {
+  background: #03a9f4;
+  color: white;
+}
+
+.pauseBtn {
+  background: #ff9800;
+  color: white;
+}
+
+.deleteBtn {
+  background: #e53935;
+  color: white;
+}
+
