@@ -62,6 +62,27 @@ export default function VerCompra({ params }: any) {
         </div>
       </section>
 
+      <button
+  className={styles.deleteBtn}
+  onClick={async () => {
+    if (!confirm("¿Eliminar esta compra? Esta acción no se puede deshacer.")) return;
+
+    const res = await fetch(`http://localhost:4000/api/purchases/${purchase._id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.ok) {
+      router.push(`/proveedores/${purchase.provider._id}`);
+    } else {
+      alert("Error al eliminar compra");
+    }
+  }}
+>
+  Eliminar compra
+</button>
+
+
       <button className={styles.backBtn} onClick={() => router.back()}>
         Volver
       </button>

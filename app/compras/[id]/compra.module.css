@@ -64,3 +64,14 @@
   text-align: center;
   opacity: 0.7;
 }
+
+.deleteBtn {
+  margin-top: 20px;
+  padding: 12px;
+  background: #e53935;
+  border: none;
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
