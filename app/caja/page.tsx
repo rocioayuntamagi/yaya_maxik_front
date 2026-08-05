@@ -25,6 +25,9 @@ export default function Caja() {
   const [showNewClient, setShowNewClient] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [newClientPhone, setNewClientPhone] = useState("");
+
 
 
   // ─── 2. REFERENCIAS ────────────────────────────────────────────────────────
@@ -34,6 +37,8 @@ export default function Caja() {
     typeof window !== "undefined"
       ? localStorage.getItem("token") || ""
       : "";
+
+      
 
   const total = cart.reduce(
     (acc, item) => acc + item.price * item.quantity,
@@ -241,6 +246,8 @@ export default function Caja() {
   };
 
   // ─── 4. FUNCIONES DE CLIENTES ──────────────────────────────────────────────
+
+  
   const fetchClients = async () => {
     const res = await fetch("http://localhost:4000/api/customers", {
       headers: { Authorization: `Bearer ${token}` },
@@ -257,27 +264,55 @@ export default function Caja() {
     }
   };
 
-  const createClient = async () => {
-    if (!newClientName.trim()) {
-      alert("Ingresá un nombre válido");
-      return;
-    }
+const createClient = async () => {
+  if (!newClientName.trim()) {
+    alert("Ingresá un nombre válido");
+    return;
+  }
 
-    const res = await fetch("http://localhost:4000/api/customers", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name: newClientName }),
-    });
+  const res = await fetch("http://localhost:4000/api/customers", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      name: newClientName,
+      phone: newClientPhone,
+    }),
+  });
 
-    const data = await res.json();
-    setClients((prev) => [...prev, data]);
-    setSelectedClient(data._id);
-    setNewClientName("");
-    setShowNewClient(false);
-  };
+  const data = await res.json();
+
+  // Agregar cliente a la lista
+  setClients((prev) => [...prev, data]);
+
+  // Seleccionarlo automáticamente
+  setSelectedClient(data._id);
+
+setTimeout(() => {
+  setSelectedClient(data._id);
+  (document.getElementById("clientSelect") as HTMLSelectElement).value = data._id;
+}, 0);
+
+
+  // Limpiar formulario
+  setNewClientName("");
+  setNewClientPhone("");
+  setShowNewClient(false);
+  
+  setTimeout(() => {
+  setSelectedClient(data._id);
+}, 0);
+
+// Cerrar popup
+  setShowNewClient(false);
+
+
+};
+
+
+
 
   // ─── 5. FUNCIONES DE VENTAS ────────────────────────────────────────────────
   const confirmSale = () => {
@@ -285,84 +320,6 @@ export default function Caja() {
       alert("El carrito está vacío");
       return;
     }
-
-    {paymentMethod === "fiado" && (
-  <div style={{ marginTop: 20 }}>
-    <h3>Seleccionar cliente</h3>
-
-    <select
-      value={selectedClient}
-      onChange={(e) => setSelectedClient(e.target.value)}
-      style={{ padding: 10, width: "100%" }}
-    >
-      <option value="">Elegir cliente...</option>
-      {clients.map((c) => (
-        <option key={c._id} value={c._id}>
-          {c.name}
-        </option>
-      ))}
-    </select>
-
-    {/* BOTÓN AGREGAR CLIENTE */}
-    <button
-      onClick={() => setShowNewClient(true)}
-      style={{
-        marginTop: 10,
-        padding: "8px 12px",
-        background: "orange",
-        color: "white",
-        border: "none",
-        borderRadius: 6,
-        cursor: "pointer",
-      }}
-    >
-      Agregar cliente
-    </button>
-
-    {/* FORMULARIO NUEVO CLIENTE */}
-    {showNewClient && (
-      <div style={{ marginTop: 15 }}>
-        <input
-          type="text"
-          placeholder="Nombre del cliente"
-          value={newClientName}
-          onChange={(e) => setNewClientName(e.target.value)}
-          style={{ padding: 10, width: "100%", marginBottom: 10 }}
-        />
-
-        <button
-          onClick={createClient}
-          style={{
-            padding: "8px 12px",
-            background: "green",
-            color: "white",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer",
-            marginRight: 10,
-          }}
-        >
-          Guardar
-        </button>
-
-        <button
-          onClick={() => setShowNewClient(false)}
-          style={{
-            padding: "8px 12px",
-            background: "gray",
-            color: "white",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer",
-          }}
-        >
-          Cancelar
-        </button>
-      </div>
-    )}
-  </div>
-)}
-
 
     const base: any = {};
 
@@ -525,6 +482,21 @@ export default function Caja() {
   }
 }, []);
 
+  useEffect(() => {
+  const fetchCustomers = async () => {
+    const res = await fetch("http://localhost:4000/api/customers", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+    setClients(data);
+  };
+
+  fetchCustomers();
+}, []);
+
 
 if (!authChecked) return null;
 
@@ -620,8 +592,15 @@ const handleLogout = () => {
               <div style={{ marginTop: "15px" }}>
                 <label className={styles.fieldLabel}>Cliente</label>
                 <select
+                id="clientSelect"
                   value={selectedClient}
-                  onChange={(e) => setSelectedClient(e.target.value)}
+                  onChange={(e) => {
+                    if (e.target.value === "add_new") {
+                      setShowNewClient(true);
+                      return;
+                    }
+                    setSelectedClient(e.target.value);
+                  }}
                   className={styles.paymentSelect}
                 >
                   <option value="">Elegir cliente...</option>
@@ -630,6 +609,7 @@ const handleLogout = () => {
                       {c.name}
                     </option>
                   ))}
+                  <option value="add_new">➕ Agregar cliente</option>
                 </select>
               </div>
             )}
@@ -973,6 +953,56 @@ const handleLogout = () => {
           </div>
         )}
       </div>
+
+      {/* POPUP NUEVO CLIENTE (fuera del contenedor principal, fixed, z-index alto) */}
+      {showNewClient && (
+        <div
+          className={styles.popupOverlay}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            zIndex: 10000,
+          }}
+        >
+          <div className={styles.popupBox}>
+            <h2 style={{ marginBottom: 10, textAlign: "center" }}>
+              Nuevo cliente
+            </h2>
+
+            <input
+              type="text"
+              placeholder="Nombre del cliente"
+              value={newClientName}
+              onChange={(e) => setNewClientName(e.target.value)}
+              className={styles.searchInput}
+              style={{ marginBottom: 10 }}
+            />
+
+            <input
+              type="text"
+              placeholder="Teléfono (opcional)"
+              value={newClientPhone}
+              onChange={(e) => setNewClientPhone(e.target.value)}
+              className={styles.searchInput}
+              style={{ marginBottom: 10 }}
+            />
+
+            <button onClick={createClient} className={styles.confirmBtn}>
+              Guardar
+            </button>
+
+            <button
+              onClick={() => setShowNewClient(false)}
+              className={styles.popupClose}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

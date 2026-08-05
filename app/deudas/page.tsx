@@ -18,6 +18,7 @@ function ClientPopup({ client, onClose }: { client: Cliente; onClose: () => void
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [partial, setPartial] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("efectivo"); // ⭐ nuevo
 
   // Cerrar con ESC
   useEffect(() => {
@@ -55,7 +56,11 @@ function ClientPopup({ client, onClose }: { client: Cliente; onClose: () => void
 
     await fetch(`http://localhost:4000/api/deudas/pagar/${saleId}`, {
       method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ paymentMethod }), // ⭐ ahora se envía
     });
 
     setItems((prev) => prev.filter((i) => i.saleId !== saleId));
@@ -70,7 +75,7 @@ function ClientPopup({ client, onClose }: { client: Cliente; onClose: () => void
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ amount: Number(partial) }),
+      body: JSON.stringify({ amount: Number(partial), paymentMethod }), // ⭐ ahora se envía
     });
 
     setPartial("");
@@ -81,7 +86,7 @@ function ClientPopup({ client, onClose }: { client: Cliente; onClose: () => void
     <div className={styles.popupOverlay} onClick={onClose}>
       <div className={styles.popup} onClick={(e) => e.stopPropagation()}>
 
-        {/* HEADER DEL POPUP (tu diseño original) */}
+        {/* HEADER DEL POPUP */}
         <div className={styles.popupHeader}>
           <div>
             <div className={styles.popupName}>{client.name}</div>
@@ -91,6 +96,23 @@ function ClientPopup({ client, onClose }: { client: Cliente; onClose: () => void
             </div>
           </div>
           <button className={styles.closeBtn} onClick={onClose}>✕</button>
+        </div>
+
+        {/* MÉTODO DE PAGO (aplica tanto a "Pagado" como a pago parcial) */}
+        <div style={{ marginBottom: 12 }}>
+          <label className={styles.popupTotalLabel} style={{ display: "block", marginBottom: 6 }}>
+            Medio de pago
+          </label>
+          <select
+            className={styles.input}
+            value={paymentMethod}
+            onChange={(e) => setPaymentMethod(e.target.value)}
+          >
+            <option value="efectivo">Efectivo</option>
+            <option value="debito">Débito</option>
+            <option value="credito">Crédito</option>
+            <option value="transferencia">Transferencia</option>
+          </select>
         </div>
 
         {/* CONTENIDO REAL DE LA DEUDA */}
@@ -158,7 +180,7 @@ export default function Deudas() {
   const [search, setSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
+  const [token, setToken] = useState("");
 
   // ── Animación partículas ──
   useEffect(() => {
@@ -224,22 +246,43 @@ export default function Deudas() {
     };
   }, []);
 
+  // ── Cargar token ──
+  useEffect(() => {
+    const t = localStorage.getItem("token");
+    if (!t) {
+      router.push("/login");
+      return;
+    }
+    setToken(t);
+  }, []);
+
   // ── Proteger ruta ──
   useEffect(() => {
+    if (token === "") return; // todavía no cargó
     if (!token) router.push("/login");
-  }, []);
+  }, [token]);
 
   // ── Cargar clientes ──
   useEffect(() => {
+    if (!token) return;
+
     const fetchClients = async () => {
       const res = await fetch("http://localhost:4000/api/customers", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data: Cliente[] = await res.json();
+
+      const data = await res.json();
+
+      if (!Array.isArray(data)) {
+        console.error("El backend no devolvió un array:", data);
+        return;
+      }
+
       setClients(data.filter((c) => c.balance < 0));
     };
+
     fetchClients();
-  }, []);
+  }, [token]);
 
   const filtered = clients.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase())
