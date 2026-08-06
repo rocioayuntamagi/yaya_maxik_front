@@ -27,6 +27,8 @@ export default function Caja() {
   const [authChecked, setAuthChecked] = useState(false);
   const [showAddClient, setShowAddClient] = useState(false);
   const [newClientPhone, setNewClientPhone] = useState("");
+  const [showOpenCashPopup, setShowOpenCashPopup] = useState(false); // ⭐ nuevo
+  const [openingAmountInput, setOpeningAmountInput] = useState("");   // ⭐ nuevo
 
 
 
@@ -290,29 +292,41 @@ const createClient = async () => {
   // Seleccionarlo automáticamente
   setSelectedClient(data._id);
 
-setTimeout(() => {
-  setSelectedClient(data._id);
-  (document.getElementById("clientSelect") as HTMLSelectElement).value = data._id;
-}, 0);
-
-
   // Limpiar formulario
   setNewClientName("");
   setNewClientPhone("");
+
+  // Cerrar popup
   setShowNewClient(false);
-  
-  setTimeout(() => {
-  setSelectedClient(data._id);
-}, 0);
-
-// Cerrar popup
-  setShowNewClient(false);
-
-
 };
 
 
 
+  // ⭐ Abrir caja del turno
+  const handleOpenCashRegister = async () => {
+    if (!openingAmountInput || Number(openingAmountInput) < 0) {
+      alert("Ingresá un monto de apertura válido");
+      return;
+    }
+
+    const res = await fetch("http://localhost:4000/api/cash/open", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ openingAmount: Number(openingAmountInput) }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data?.message || "Error al abrir la caja");
+      return;
+    }
+
+    setOpeningAmountInput("");
+    setShowOpenCashPopup(false);
+  };
 
   // ─── 5. FUNCIONES DE VENTAS ────────────────────────────────────────────────
   const confirmSale = () => {
@@ -426,6 +440,27 @@ setTimeout(() => {
   if (!authChecked) return;
   fetchClients();
 }, [authChecked]);
+
+  // ⭐ Verificar si hay caja abierta al iniciar el turno
+  useEffect(() => {
+    if (!authChecked) return;
+
+    const checkCashStatus = async () => {
+      try {
+        const res = await fetch("http://localhost:4000/api/cash/status", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (!data.isOpen) {
+          setShowOpenCashPopup(true);
+        }
+      } catch (err) {
+        console.error("Error al verificar estado de caja:", err);
+      }
+    };
+
+    checkCashStatus();
+  }, [authChecked]);
 
 
   useEffect(() => {
@@ -592,7 +627,6 @@ const handleLogout = () => {
               <div style={{ marginTop: "15px" }}>
                 <label className={styles.fieldLabel}>Cliente</label>
                 <select
-                id="clientSelect"
                   value={selectedClient}
                   onChange={(e) => {
                     if (e.target.value === "add_new") {
@@ -953,6 +987,47 @@ const handleLogout = () => {
           </div>
         )}
       </div>
+
+      {/* POPUP ABRIR CAJA (bloquea el uso de la caja hasta abrir el turno) */}
+      {showOpenCashPopup && (
+        <div
+          className={styles.popupOverlay}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            zIndex: 10001,
+          }}
+        >
+          <div className={styles.popupBox}>
+            <h2 className={styles.popupTitle}>Abrir caja</h2>
+
+            <p style={{ marginBottom: 12, color: "#e8eaf0" }}>
+              No hay ninguna caja abierta. Ingresá el monto inicial para
+              comenzar el turno.
+            </p>
+
+            <label className={styles.fieldLabel}>Monto de apertura</label>
+            <input
+              type="number"
+              className={styles.searchInput}
+              value={openingAmountInput}
+              onChange={(e) => setOpeningAmountInput(e.target.value)}
+              placeholder="0"
+            />
+
+            <button
+              onClick={handleOpenCashRegister}
+              className={styles.confirmBtn}
+              style={{ marginTop: 16 }}
+            >
+              Abrir caja
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* POPUP NUEVO CLIENTE (fuera del contenedor principal, fixed, z-index alto) */}
       {showNewClient && (

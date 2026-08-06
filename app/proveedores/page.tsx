@@ -95,6 +95,14 @@ export default function ProveedoresPage() {
 
   return (
     <div className={styles.page}>
+      {/* ⭐ Volver a Caja */}
+      <button
+        className={styles.backBtn}
+        onClick={() => router.push("/caja")}
+      >
+        ←
+      </button>
+
       <canvas ref={canvasRef} className={styles.canvas} />
 
       <div className={styles.content}>

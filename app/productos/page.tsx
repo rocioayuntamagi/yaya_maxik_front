@@ -7,6 +7,10 @@ import styles from "./productos.module.css";
 import { Producto } from "../types/producto";
 import { useRouter } from "next/navigation";
 
+// ⭐ Normaliza el nombre de categoría para agrupar sin duplicar por mayúsculas/minúsculas
+const categoryKey = (cat?: string) => (cat || "Sin categoría").trim().toLowerCase();
+const categoryLabel = (key: string) => key.charAt(0).toUpperCase() + key.slice(1);
+
 
 export default function ProductosPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -20,6 +24,11 @@ export default function ProductosPage() {
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
 
   const [search, setSearch] = useState("");
+
+  // ⭐ Categoría seleccionada (abre el popup a pantalla completa)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categorySearch, setCategorySearch] = useState("");
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const router = useRouter();
@@ -91,6 +100,20 @@ export default function ProductosPage() {
     };
   }, []);
 
+  // ⭐ Cerrar popup de categoría con ESC
+  useEffect(() => {
+    if (!selectedCategory) return;
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedCategory(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [selectedCategory]);
+
   // ⭐ Cargar productos
   useEffect(() => {
     const fetchProducts = async () => {
@@ -115,10 +138,31 @@ export default function ProductosPage() {
     fetchProducts();
   }, []);
 
-  // ⭐ Filtrar productos
+  // ⭐ Filtrar productos (búsqueda global, top de la página)
   const productosFiltrados = productos.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  // ⭐ Agrupar por categoría (normalizada) para armar los tiles y sus contadores
+  const productosPorCategoria = productosFiltrados.reduce((acc, p) => {
+    const key = categoryKey(p.category);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(p);
+    return acc;
+  }, {} as Record<string, Producto[]>);
+
+  const categoriasOrdenadas = Object.keys(productosPorCategoria).sort((a, b) =>
+    a.localeCompare(b, "es")
+  );
+
+  // ⭐ Productos de la categoría abierta en el popup, con su propio buscador
+  const productosDeCategoria = selectedCategory
+    ? (productosPorCategoria[selectedCategory] || []).filter((p) =>
+        p.name.toLowerCase().includes(categorySearch.toLowerCase())
+      )
+    : [];
+
+  const hayBusquedaGlobal = search.trim() !== "";
 
   // ⭐ Cuando se crea un producto
   const handleProductCreated = (nuevoProducto: Producto) => {
@@ -172,12 +216,14 @@ const handleProductDelete = async (id: string) => {
   return (
     <div className={styles.page}>
 
-      <button
-  className={styles.circleBtn}
-  onClick={() => router.push("/caja")}
->
-  ←
-</button>
+      {!selectedCategory && (
+        <button
+          className={styles.circleBtn}
+          onClick={() => router.push("/caja")}
+        >
+          ←
+        </button>
+      )}
 
       <canvas ref={canvasRef} className={styles.canvas} />
 
@@ -198,39 +244,180 @@ const handleProductDelete = async (id: string) => {
         </button>
       </div>
 
-      {/* GRILLA */}
       {loading ? (
         <p className={styles.loading}>Cargando productos...</p>
-      ) : (
-        <div className={styles.grid}>
-          {productosFiltrados.map((p) => (
-            <div
-              key={p._id}
-              className={styles.card}
-              onClick={() => {
-                setSelectedProduct(p);
-                setShowDetailModal(true);
+      ) : categoriasOrdenadas.length === 0 ? (
+        <p className={styles.loading}>No se encontraron productos.</p>
+      ) : hayBusquedaGlobal ? (
+        // ⭐ Mientras hay texto en el buscador, se muestran los resultados
+        // directamente agrupados por categoría (sin pasar por los tiles)
+        categoriasOrdenadas.map((key) => (
+          <div key={key} style={{ marginBottom: 32 }}>
+            <h2
+              style={{
+                margin: "24px 0 12px 0",
+                fontSize: "1.2rem",
+                color: "#e8eaf0",
+                borderBottom: "1px solid rgba(255,255,255,0.1)",
+                paddingBottom: 8,
               }}
             >
-              <h3>{p.name}</h3>
-              <p className={styles.price}>${p.price}</p>
-              <p className={styles.stock}>Stock: {p.stock}</p>
-              <p className={styles.cardHint}>Haga click para ver producto</p>
+              {categoryLabel(key)}
+              <span style={{ opacity: 0.5, fontSize: "0.85rem", marginLeft: 8 }}>
+                ({productosPorCategoria[key].length})
+              </span>
+            </h2>
 
-              <div className={styles.cardActions}>
-                <button
-  className={styles.deleteBtn}
-  onClick={(e) => {
-    e.stopPropagation();
-    handleProductDelete(p._id!);
-  }}
->
-  Eliminar
-</button>
+            <div className={styles.grid}>
+              {productosPorCategoria[key].map((p) => (
+                <div
+                  key={p._id}
+                  className={styles.card}
+                  onClick={() => {
+                    setSelectedProduct(p);
+                    setShowDetailModal(true);
+                  }}
+                >
+                  <h3>{p.name}</h3>
+                  <p className={styles.price}>${p.price}</p>
+                  <p className={styles.stock}>Stock: {p.stock}</p>
+                  <p className={styles.cardHint}>Haga click para ver producto</p>
 
-              </div>
+                  <div className={styles.cardActions}>
+                    <button
+                      className={styles.deleteBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleProductDelete(p._id!);
+                      }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))
+      ) : (
+        // ⭐ TILES DE CATEGORÍA (vista por defecto, sin búsqueda activa)
+        <div className={styles.grid}>
+          {categoriasOrdenadas.map((key) => (
+            <div
+              key={key}
+              className={styles.card}
+              onClick={() => {
+                setSelectedCategory(key);
+                setCategorySearch("");
+              }}
+            >
+              <h3>{categoryLabel(key)}</h3>
+              <p className={styles.stock}>
+                {productosPorCategoria[key].length} producto
+                {productosPorCategoria[key].length !== 1 ? "s" : ""}
+              </p>
+              <p className={styles.cardHint}>Haga click para ver la categoría</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* POPUP DE CATEGORÍA — pantalla completa */}
+      {selectedCategory && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "#0b0d14",
+            zIndex: 9000,
+            overflowY: "auto",
+            padding: "24px 32px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 20,
+              flexWrap: "wrap",
+              gap: 12,
+            }}
+          >
+            <h1 style={{ color: "#e8eaf0", margin: 0 }}>
+              {categoryLabel(selectedCategory)}
+            </h1>
+
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <input
+                className={styles.search}
+                placeholder="Buscar en esta categoría..."
+                value={categorySearch}
+                onChange={(e) => setCategorySearch(e.target.value)}
+              />
+
+              <button
+                className={styles.addBtn}
+                onClick={() => setShowCreateModal(true)}
+              >
+                ➕ Agregar producto
+              </button>
+
+              <button
+                onClick={() => setSelectedCategory(null)}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  background: "rgba(255,255,255,0.06)",
+                  color: "#e8eaf0",
+                  fontSize: 18,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {productosDeCategoria.length === 0 ? (
+            <p className={styles.loading}>No hay productos en esta categoría.</p>
+          ) : (
+            <div className={styles.grid}>
+              {productosDeCategoria.map((p) => (
+                <div
+                  key={p._id}
+                  className={styles.card}
+                  onClick={() => {
+                    setSelectedProduct(p);
+                    setShowDetailModal(true);
+                  }}
+                >
+                  <h3>{p.name}</h3>
+                  <p className={styles.price}>${p.price}</p>
+                  <p className={styles.stock}>Stock: {p.stock}</p>
+                  <p className={styles.cardHint}>Haga click para ver producto</p>
+
+                  <div className={styles.cardActions}>
+                    <button
+                      className={styles.deleteBtn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleProductDelete(p._id!);
+                      }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -238,6 +425,7 @@ const handleProductDelete = async (id: string) => {
       {showCreateModal && (
         <div
           className={styles.modalOverlay}
+          style={{ zIndex: 9500 }}
           onClick={() => setShowCreateModal(false)}
         >
           <div
@@ -256,6 +444,7 @@ const handleProductDelete = async (id: string) => {
       {showDetailModal && selectedProduct && (
         <div
           className={styles.modalOverlay}
+          style={{ zIndex: 9500 }}
           onClick={() => {
             setSelectedProduct(null);
             setShowDetailModal(false);
