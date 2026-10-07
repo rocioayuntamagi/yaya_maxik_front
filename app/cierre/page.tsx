@@ -43,6 +43,8 @@ export default function CierreDeCaja() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [closing, setClosing] = useState(false);
+  const [closeError, setCloseError] = useState("");
 
   // Cargar ventas del turno
   useEffect(() => {
@@ -85,6 +87,37 @@ export default function CierreDeCaja() {
     link.click();
   };
 
+  const cerrarCaja = async () => {
+    if (closing || !window.confirm("¿Confirmás el cierre definitivo de la caja? No se puede deshacer.")) return;
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    setClosing(true);
+    setCloseError("");
+    try {
+      const res = await fetch("http://localhost:4000/api/cash/close", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCloseError(res.status === 409
+          ? "No hay una caja abierta o la caja ya fue cerrada."
+          : data.message || "No se pudo cerrar la caja.");
+        return;
+      }
+      window.alert(data.message || "Caja cerrada correctamente");
+      router.replace("/caja");
+    } catch {
+      setCloseError("No se pudo conectar con el servidor para cerrar la caja.");
+    } finally {
+      setClosing(false);
+    }
+  };
+
   if (loading) return <p className="p-8">Cargando previsualización del cierre...</p>;
   if (error) return <p role="alert" className="p-8">{error}</p>;
   if (!preview) return null;
@@ -119,6 +152,18 @@ export default function CierreDeCaja() {
             <p className="mt-2 text-3xl font-bold">{formatMoney(totals.balanceFinal)}</p>
           </div>
         </section>
+
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={cerrarCaja}
+            disabled={closing}
+            className="rounded bg-red-700 px-5 py-3 font-semibold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {closing ? "Cerrando caja..." : "Cerrar caja"}
+          </button>
+          {closeError && <p role="alert" className="text-red-700">{closeError}</p>}
+        </div>
 
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
