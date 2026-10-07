@@ -29,6 +29,7 @@ export default function Caja() {
   const [newClientPhone, setNewClientPhone] = useState("");
   const [showOpenCashPopup, setShowOpenCashPopup] = useState(false); // ⭐ nuevo
   const [openingAmountInput, setOpeningAmountInput] = useState("");   // ⭐ nuevo
+  const [cashStatus, setCashStatus] = useState<"loading" | "open" | "closed" | "error">("loading");
 
 
 
@@ -326,6 +327,7 @@ const createClient = async () => {
 
     setOpeningAmountInput("");
     setShowOpenCashPopup(false);
+    setCashStatus("open");
   };
 
   // ─── 5. FUNCIONES DE VENTAS ────────────────────────────────────────────────
@@ -444,22 +446,31 @@ const createClient = async () => {
   // ⭐ Verificar si hay caja abierta al iniciar el turno
   useEffect(() => {
     if (!authChecked) return;
+    let active = true;
 
     const checkCashStatus = async () => {
       try {
         const res = await fetch("http://localhost:4000/api/cash/status", {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
         });
+        if (!res.ok) throw new Error("Error al consultar estado de caja");
         const data = await res.json();
-        if (!data.isOpen) {
-          setShowOpenCashPopup(true);
-        }
+        if (!active) return;
+        setCashStatus(data.isOpen ? "open" : "closed");
+        setShowOpenCashPopup(!data.isOpen);
       } catch (err) {
+        if (!active) return;
+        setCashStatus("error");
         console.error("Error al verificar estado de caja:", err);
       }
     };
 
     checkCashStatus();
+    window.addEventListener("focus", checkCashStatus);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", checkCashStatus);
+    };
   }, [authChecked]);
 
 
@@ -573,7 +584,10 @@ const handleLogout = () => {
       <div className={styles.mainLayout}>
         {/* COLUMNA IZQUIERDA */}
         <div className={styles.leftColumn}>
-          <h1 style={{ marginBottom: 20 }}>Caja</h1>
+          <h1 style={{ marginBottom: 8 }}>Caja</h1>
+          <p role="status" style={{ marginBottom: 16, color: cashStatus === "open" ? "#3ddc84" : cashStatus === "error" ? "#ff6b6b" : "#ffd166" }}>
+            {cashStatus === "open" ? "Caja abierta" : cashStatus === "closed" ? "Caja cerrada" : cashStatus === "error" ? "No se pudo consultar el estado de caja" : "Consultando estado de caja..."}
+          </p>
 
           <input
             type="text"
@@ -747,6 +761,13 @@ const handleLogout = () => {
                 className={styles.popupBtn}
               >
                 Ver previsualización de caja
+              </button>
+
+              <button
+                onClick={() => router.push("/caja/historial")}
+                className={styles.popupBtn}
+              >
+                Historial de cierres
               </button>
 
               <button onClick={handleLogout} className={styles.popupClose}>
@@ -1031,6 +1052,13 @@ const handleLogout = () => {
               style={{ marginTop: 16 }}
             >
               Abrir caja
+            </button>
+            <button
+              onClick={() => router.push("/caja/historial")}
+              className={styles.popupBtn}
+              style={{ marginTop: 12 }}
+            >
+              Ver historial de cierres
             </button>
           </div>
         </div>

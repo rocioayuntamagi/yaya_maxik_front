@@ -63,7 +63,7 @@ export default function HistorialDeCajas() {
         ) : history.length === 0 ? (
           <p className="mt-6 text-slate-600">No hay cajas cerradas todavía.</p>
         ) : (
-          <ul className="mt-6 space-y-4">
+          <ul className="mt-6 max-h-[70vh] space-y-4 overflow-y-auto pr-1">
             {history.map(cash => (
               <li key={cash._id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                 <dl className="grid gap-4 sm:grid-cols-3">
@@ -77,7 +77,7 @@ export default function HistorialDeCajas() {
                   </div>
                   <div>
                     <dt className="text-sm text-slate-600">Balance final</dt>
-                    <dd className="mt-1 font-semibold">{cash.finalBalance == null ? "Sin balance registrado" : formatMoney(cash.finalBalance)}</dd>
+                    <dd className="mt-1 break-all font-semibold">{cash.finalBalance == null ? "Sin balance registrado" : formatMoney(cash.finalBalance)}</dd>
                   </div>
                 </dl>
                 <Link href={`/caja/historial/${cash._id}`} className="mt-4 inline-block text-sm font-semibold text-blue-700 hover:underline">

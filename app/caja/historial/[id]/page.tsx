@@ -94,7 +94,7 @@ export default function DetalleCierreDeCaja() {
           <>
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-xl font-semibold">Datos de la caja</h2>
-              <p className="mt-1 text-sm text-slate-600">Caja: {detail.cashRegister._id}</p>
+              <p className="mt-1 break-all text-sm text-slate-600">Caja: {detail.cashRegister._id}</p>
               <dl className="mt-4 grid gap-4 sm:grid-cols-3">
                 <div>
                   <dt className="text-sm text-slate-600">Apertura</dt>
@@ -125,7 +125,7 @@ export default function DetalleCierreDeCaja() {
                 ] as const).map(([label, amount]) => (
                   <div key={label} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                     <dt className="text-sm text-slate-600">{label}</dt>
-                    <dd className="mt-2 text-xl font-semibold">{formatMoney(amount)}</dd>
+                    <dd className="mt-2 break-all text-xl font-semibold">{formatMoney(amount)}</dd>
                   </div>
                 ))}
               </dl>
@@ -134,11 +134,11 @@ export default function DetalleCierreDeCaja() {
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-xl font-semibold">Ventas del turno ({detail.ventas.length})</h2>
               {detail.ventas.length === 0 ? <p className="mt-4 text-slate-600">No hay ventas en este turno.</p> : (
-                <ul className="mt-4 divide-y divide-slate-200">
+                <ul className="mt-4 max-h-80 divide-y divide-slate-200 overflow-y-auto">
                   {detail.ventas.map(v => (
                     <li key={v._id} className="flex flex-wrap justify-between gap-2 py-3">
-                      <span>Venta #{v._id.slice(-6)} · {formatMovementDate(v)} · {v.paymentMethod}</span>
-                      <strong>{formatMoney(v.total)}</strong>
+                      <span className="min-w-0 flex-1 break-words">Venta #{v._id.slice(-6)} · {formatMovementDate(v)} · {v.paymentMethod}</span>
+                      <strong className="shrink-0">{formatMoney(v.total)}</strong>
                     </li>
                   ))}
                 </ul>
@@ -148,11 +148,11 @@ export default function DetalleCierreDeCaja() {
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-xl font-semibold">Pagos del turno ({detail.pagos.length})</h2>
               {detail.pagos.length === 0 ? <p className="mt-4 text-slate-600">No hay pagos en este turno.</p> : (
-                <ul className="mt-4 divide-y divide-slate-200">
+                <ul className="mt-4 max-h-80 divide-y divide-slate-200 overflow-y-auto">
                   {detail.pagos.map(p => (
                     <li key={p._id} className="flex flex-wrap justify-between gap-2 py-3">
-                      <span>Pago #{p._id.slice(-6)} · {formatMovementDate(p)} · {p.paymentMethod}</span>
-                      <strong>{formatMoney(p.amount)}</strong>
+                      <span className="min-w-0 flex-1 break-words">Pago #{p._id.slice(-6)} · {formatMovementDate(p)} · {p.paymentMethod}</span>
+                      <strong className="shrink-0">{formatMoney(p.amount)}</strong>
                     </li>
                   ))}
                 </ul>
@@ -162,11 +162,11 @@ export default function DetalleCierreDeCaja() {
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-xl font-semibold">Gastos del turno ({detail.gastos.length})</h2>
               {detail.gastos.length === 0 ? <p className="mt-4 text-slate-600">No hay gastos en este turno.</p> : (
-                <ul className="mt-4 divide-y divide-slate-200">
+                <ul className="mt-4 max-h-80 divide-y divide-slate-200 overflow-y-auto">
                   {detail.gastos.map(g => (
                     <li key={g._id} className="flex flex-wrap justify-between gap-2 py-3">
-                      <span>{g.category}{g.description ? ` · ${g.description}` : ""} · {formatMovementDate(g)} · {g.paymentMethod}</span>
-                      <strong>{formatMoney(g.amount)}</strong>
+                      <span className="min-w-0 flex-1 break-words">{g.category}{g.description ? ` · ${g.description}` : ""} · {formatMovementDate(g)} · {g.paymentMethod}</span>
+                      <strong className="shrink-0">{formatMoney(g.amount)}</strong>
                     </li>
                   ))}
                 </ul>
