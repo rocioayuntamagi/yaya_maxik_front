@@ -742,6 +742,13 @@ const handleLogout = () => {
                 🏭 Proveedores
               </button>
 
+              <button
+                onClick={() => router.push("/cierre")}
+                className={styles.popupBtn}
+              >
+                Ver previsualización de caja
+              </button>
+
               <button onClick={handleLogout} className={styles.popupClose}>
   🔒 Cerrar sesión
 </button>
