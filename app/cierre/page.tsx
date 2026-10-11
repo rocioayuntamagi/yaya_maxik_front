@@ -58,10 +58,15 @@ export default function CierreDeCaja() {
     }
 
     let active = true;
+    let refreshing = false;
+    let currentCashId: string | null = null;
     const loadPreview = async () => {
+      if (!active || refreshing) return;
+      refreshing = true;
       try {
         const res = await fetch("http://localhost:4000/api/cash/preview", {
           headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
         });
         const data = await res.json();
         if (res.status === 409) {
@@ -69,16 +74,34 @@ export default function CierreDeCaja() {
           throw new Error("No hay caja abierta. Abrí una caja para ver la previsualización.");
         }
         if (!res.ok) throw new Error(data.message || "No se pudo cargar la previsualización");
-        if (active) setPreview(data as Preview);
+        if (active) {
+          if (currentCashId !== data.cashRegisterId) setCloseError("");
+          currentCashId = data.cashRegisterId;
+          setPreview(data as Preview);
+          setCashClosed(false);
+          setError("");
+        }
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : "No se pudo cargar la previsualización");
       } finally {
+        refreshing = false;
         if (active) setLoading(false);
       }
     };
 
-    loadPreview();
-    return () => { active = false; };
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void loadPreview();
+    };
+    void loadPreview();
+    const interval = window.setInterval(refreshWhenVisible, 5000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [router]);
 
   useEffect(() => {
@@ -156,7 +179,7 @@ export default function CierreDeCaja() {
   };
 
   if (loading) return <p className="p-8">Cargando previsualización del cierre...</p>;
-  if (error) return (
+  if (error && (!preview || cashClosed)) return (
     <main className="min-h-screen bg-slate-50 p-8 text-slate-900">
       <p role="alert" className="text-red-700">{error}</p>
       <nav className="mt-4 flex flex-wrap gap-4">
@@ -184,6 +207,7 @@ export default function CierreDeCaja() {
           <h1 className="text-3xl font-bold">Previsualización del cierre de caja</h1>
           <p className="mt-2 break-all text-sm text-slate-600">Caja: {preview.cashRegisterId}</p>
         </header>
+        {error && <p role="alert" className="text-red-700">No se pudo actualizar la previsualización: {error}</p>}
 
         <section aria-label="Totales del turno" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {resumen.map(([label, amount]) => (
