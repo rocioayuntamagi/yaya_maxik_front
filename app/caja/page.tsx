@@ -30,6 +30,8 @@ export default function Caja() {
   const [showOpenCashPopup, setShowOpenCashPopup] = useState(false); // ⭐ nuevo
   const [openingAmountInput, setOpeningAmountInput] = useState("");   // ⭐ nuevo
   const [cashStatus, setCashStatus] = useState<"loading" | "open" | "closed" | "error">("loading");
+  const [cashOpenedAt, setCashOpenedAt] = useState<string | null>(null);
+  const [saleError, setSaleError] = useState("");
 
 
 
@@ -319,8 +321,8 @@ const createClient = async () => {
       body: JSON.stringify({ openingAmount: Number(openingAmountInput) }),
     });
 
+    const data = await res.json();
     if (!res.ok) {
-      const data = await res.json();
       alert(data?.message || "Error al abrir la caja");
       return;
     }
@@ -328,10 +330,19 @@ const createClient = async () => {
     setOpeningAmountInput("");
     setShowOpenCashPopup(false);
     setCashStatus("open");
+    setCashOpenedAt(data.cash?.openedAt || null);
+    setSaleError("");
   };
 
   // ─── 5. FUNCIONES DE VENTAS ────────────────────────────────────────────────
   const confirmSale = () => {
+    if (cashStatus !== "open") {
+      setSaleError(cashStatus === "closed"
+        ? "No se pueden registrar ventas: la caja está cerrada."
+        : "No se pueden registrar ventas hasta confirmar que la caja está abierta.");
+      return;
+    }
+    setSaleError("");
     if (cart.length === 0) {
       alert("El carrito está vacío");
       return;
@@ -369,6 +380,11 @@ const createClient = async () => {
   };
 
   const handleConfirmPayment = async () => {
+    if (cashStatus !== "open") {
+      setSaleError("No se puede registrar la venta: la caja está cerrada o no se pudo verificar su estado.");
+      setShowPaymentPopup(false);
+      return;
+    }
     const saleData: any = {
       products: cart.map((item) => ({
         product: item._id,
@@ -408,33 +424,50 @@ const createClient = async () => {
       saleData.customer = selectedClient;
     }
 
-    const res = await fetch("http://localhost:4000/api/sales", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(saleData),
-    });
+    try {
+      const res = await fetch("http://localhost:4000/api/sales", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(saleData),
+      });
 
-    const data = await res.json();
-    setLastSaleId(data?._id || null);
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 409) {
+          setCashStatus("closed");
+          setCashOpenedAt(null);
+          setShowPaymentPopup(false);
+          setShowOpenCashPopup(true);
+          setSaleError("No se pudo registrar la venta: la caja está cerrada.");
+        } else {
+          setSaleError(data?.message || "No se pudo registrar la venta.");
+        }
+        return;
+      }
+      setSaleError("");
+      setLastSaleId(data?._id || null);
 
-    const ticket = buildTicketText({
-      saleId: data?._id,
-      total,
-      paymentMethod,
-      paymentData: saleData,
-      cart,
-    });
+      const ticket = buildTicketText({
+        saleId: data?._id,
+        total,
+        paymentMethod,
+        paymentData: saleData,
+        cart,
+      });
 
-    setTicketText(ticket);
-    setShowPaymentPopup(false);
-    setShowTicketPopup(true);
+      setTicketText(ticket);
+      setShowPaymentPopup(false);
+      setShowTicketPopup(true);
 
-    setCart([]);
-    setPaymentMethod("efectivo");
-    setSelectedClient("");
+      setCart([]);
+      setPaymentMethod("efectivo");
+      setSelectedClient("");
+    } catch {
+      setSaleError("No se pudo conectar con el servidor para registrar la venta.");
+    }
   };
 
   // ─── 6. EFECTOS ────────────────────────────────────────────────────────────
@@ -457,10 +490,14 @@ const createClient = async () => {
         const data = await res.json();
         if (!active) return;
         setCashStatus(data.isOpen ? "open" : "closed");
+        setCashOpenedAt(data.isOpen ? data.cash?.openedAt || null : null);
         setShowOpenCashPopup(!data.isOpen);
+        setSaleError(data.isOpen ? "" : "No se pueden registrar ventas: la caja está cerrada.");
       } catch (err) {
         if (!active) return;
         setCashStatus("error");
+        setCashOpenedAt(null);
+        setSaleError("No se pueden registrar ventas hasta consultar el estado de la caja.");
         console.error("Error al verificar estado de caja:", err);
       }
     };
@@ -586,7 +623,11 @@ const handleLogout = () => {
         <div className={styles.leftColumn}>
           <h1 style={{ marginBottom: 8 }}>Caja</h1>
           <p role="status" style={{ marginBottom: 16, color: cashStatus === "open" ? "#3ddc84" : cashStatus === "error" ? "#ff6b6b" : "#ffd166" }}>
-            {cashStatus === "open" ? "Caja abierta" : cashStatus === "closed" ? "Caja cerrada" : cashStatus === "error" ? "No se pudo consultar el estado de caja" : "Consultando estado de caja..."}
+            {cashStatus === "open"
+              ? cashOpenedAt
+                ? `Caja abierta desde ${new Date(cashOpenedAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}`
+                : "Caja abierta"
+              : cashStatus === "closed" ? "Caja cerrada" : cashStatus === "error" ? "No se pudo consultar el estado de caja" : "Consultando estado de caja..."}
           </p>
 
           <input
@@ -662,9 +703,15 @@ const handleLogout = () => {
               </div>
             )}
 
-            <button onClick={confirmSale} className={styles.confirmBtn}>
+            <button
+              onClick={confirmSale}
+              disabled={cashStatus !== "open"}
+              className={styles.confirmBtn}
+              style={{ opacity: cashStatus === "open" ? 1 : 0.5, cursor: cashStatus === "open" ? "pointer" : "not-allowed" }}
+            >
               Confirmar venta
             </button>
+            {saleError && <p role="alert" style={{ color: "#ff6b6b", marginTop: 12 }}>{saleError}</p>}
           </div>
         </div>
 
@@ -956,11 +1003,13 @@ const handleLogout = () => {
                   La venta se registrará como cuenta corriente del cliente.
                 </div>
               )}
+              {saleError && <p role="alert" style={{ color: "#ff6b6b", marginTop: 12 }}>{saleError}</p>}
 
               <button
                 onClick={handleConfirmPayment}
+                disabled={cashStatus !== "open"}
                 className={styles.confirmBtn}
-                style={{ marginTop: 16 }}
+                style={{ marginTop: 16, opacity: cashStatus === "open" ? 1 : 0.5 }}
               >
                 Guardar venta y generar ticket
               </button>
@@ -1036,6 +1085,7 @@ const handleLogout = () => {
               No hay ninguna caja abierta. Ingresá el monto inicial para
               comenzar el turno.
             </p>
+            {saleError && <p role="alert" style={{ color: "#ff6b6b", marginBottom: 12 }}>{saleError}</p>}
 
             <label className={styles.fieldLabel}>Monto de apertura</label>
             <input
