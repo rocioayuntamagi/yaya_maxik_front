@@ -4,6 +4,23 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./caja.module.css";
 
+type TurnPreview = {
+  cashRegisterId: string;
+  totals: {
+    efectivo: number;
+    tarjeta: number;
+    transferencia: number;
+    fiadoGenerado: number;
+    fiadoRecuperado: number;
+    gastos: number;
+    balanceFinal: number;
+  };
+  ventas: { _id: string }[];
+};
+
+const formatTurnAmount = (amount: number) =>
+  new Intl.NumberFormat("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+
 export default function Caja() {
   const router = useRouter();
 
@@ -32,6 +49,8 @@ export default function Caja() {
   const [cashStatus, setCashStatus] = useState<"loading" | "open" | "closed" | "error">("loading");
   const [cashOpenedAt, setCashOpenedAt] = useState<string | null>(null);
   const [saleError, setSaleError] = useState("");
+  const [turnPreview, setTurnPreview] = useState<TurnPreview | null>(null);
+  const [turnError, setTurnError] = useState("");
 
 
 
@@ -332,6 +351,7 @@ const createClient = async () => {
     setCashStatus("open");
     setCashOpenedAt(data.cash?.openedAt || null);
     setSaleError("");
+    window.dispatchEvent(new Event("cash-movement"));
   };
 
   // ─── 5. FUNCIONES DE VENTAS ────────────────────────────────────────────────
@@ -465,6 +485,7 @@ const createClient = async () => {
       setCart([]);
       setPaymentMethod("efectivo");
       setSelectedClient("");
+      window.dispatchEvent(new Event("cash-movement"));
     } catch {
       setSaleError("No se pudo conectar con el servidor para registrar la venta.");
     }
@@ -480,33 +501,87 @@ const createClient = async () => {
   useEffect(() => {
     if (!authChecked) return;
     let active = true;
+    let refreshing = false;
+    let refreshPending = false;
+    let lastCashId: string | null = null;
 
-    const checkCashStatus = async () => {
+    const refreshCash = async () => {
+      if (!active) return;
+      if (refreshing) {
+        refreshPending = true;
+        return;
+      }
+      refreshing = true;
       try {
-        const res = await fetch("http://localhost:4000/api/cash/status", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
-        });
+        const headers = { Authorization: `Bearer ${localStorage.getItem("token") || ""}` };
+        const res = await fetch("http://localhost:4000/api/cash/status", { headers, cache: "no-store" });
         if (!res.ok) throw new Error("Error al consultar estado de caja");
         const data = await res.json();
         if (!active) return;
         setCashStatus(data.isOpen ? "open" : "closed");
         setCashOpenedAt(data.isOpen ? data.cash?.openedAt || null : null);
         setShowOpenCashPopup(!data.isOpen);
-        setSaleError(data.isOpen ? "" : "No se pueden registrar ventas: la caja está cerrada.");
+        if (!data.isOpen) {
+          lastCashId = null;
+          setTurnPreview(null);
+          setTurnError("");
+          setSaleError("No se pueden registrar ventas: la caja está cerrada.");
+          return;
+        }
+        if (lastCashId !== data.cash?._id) setSaleError("");
+        lastCashId = data.cash?._id || null;
+        try {
+          const previewRes = await fetch("http://localhost:4000/api/cash/preview", { headers, cache: "no-store" });
+          if (previewRes.status === 409) {
+            if (!active) return;
+            lastCashId = null;
+            setCashStatus("closed");
+            setCashOpenedAt(null);
+            setShowOpenCashPopup(true);
+            setTurnPreview(null);
+            setSaleError("No se pueden registrar ventas: la caja está cerrada.");
+            return;
+          }
+          if (!previewRes.ok) throw new Error("Error al consultar totales de caja");
+          const preview = await previewRes.json();
+          if (active) {
+            setTurnPreview(preview as TurnPreview);
+            setTurnError("");
+          }
+        } catch {
+          if (active) setTurnError("No se pudieron actualizar los totales del turno.");
+        }
       } catch (err) {
         if (!active) return;
+        lastCashId = null;
         setCashStatus("error");
         setCashOpenedAt(null);
+        setTurnPreview(null);
         setSaleError("No se pueden registrar ventas hasta consultar el estado de la caja.");
         console.error("Error al verificar estado de caja:", err);
+      } finally {
+        refreshing = false;
+        if (refreshPending && active) {
+          refreshPending = false;
+          void refreshCash();
+        }
       }
     };
 
-    checkCashStatus();
-    window.addEventListener("focus", checkCashStatus);
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void refreshCash();
+    };
+    void refreshCash();
+    const interval = window.setInterval(refreshWhenVisible, 5000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("cash-movement", refreshCash);
     return () => {
       active = false;
-      window.removeEventListener("focus", checkCashStatus);
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("cash-movement", refreshCash);
     };
   }, [authChecked]);
 
@@ -629,6 +704,19 @@ const handleLogout = () => {
                 : "Caja abierta"
               : cashStatus === "closed" ? "Caja cerrada" : cashStatus === "error" ? "No se pudo consultar el estado de caja" : "Consultando estado de caja..."}
           </p>
+          {cashStatus === "open" && turnPreview && (
+            <div role="status" aria-label="Resumen del turno" style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", marginBottom: 16, fontSize: 13, color: "#e8eaf0" }}>
+              <span>Ventas: {turnPreview.ventas.length}</span>
+              <span>Efectivo: ${formatTurnAmount(turnPreview.totals.efectivo)}</span>
+              <span>Tarjeta: ${formatTurnAmount(turnPreview.totals.tarjeta)}</span>
+              <span>Transferencia: ${formatTurnAmount(turnPreview.totals.transferencia)}</span>
+              <span>Fiado generado: ${formatTurnAmount(turnPreview.totals.fiadoGenerado)}</span>
+              <span>Fiado recuperado: ${formatTurnAmount(turnPreview.totals.fiadoRecuperado)}</span>
+              <span>Gastos: ${formatTurnAmount(turnPreview.totals.gastos)}</span>
+              <strong>Balance del turno: ${formatTurnAmount(turnPreview.totals.balanceFinal)}</strong>
+            </div>
+          )}
+          {turnError && <p role="alert" style={{ color: "#ff6b6b", marginBottom: 12 }}>{turnError}</p>}
 
           <input
             type="text"
