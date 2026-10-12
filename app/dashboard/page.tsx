@@ -66,7 +66,7 @@ export default function DashboardPage() {
             {loading ? <p className="mt-4 text-slate-600">Cargando indicadores...</p> : error ? (
               <p role="alert" className="mt-4 text-red-700">{error}</p>
             ) : summary && (
-              <dl className="mt-4 space-y-3">
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
                 {([
                   ["Total de ventas del día", summary.totalVentas],
                   ["Efectivo", summary.totalesPorMetodo.efectivo],
@@ -77,9 +77,9 @@ export default function DashboardPage() {
                   ["Gastos del día", summary.gastos],
                   ["Balance del día", summary.balanceDia],
                 ] as const).map(([label, value]) => (
-                  <div key={label} className="flex flex-wrap items-baseline justify-between gap-2">
-                    <dt className="text-slate-600">{label}</dt>
-                    <dd className="font-semibold">{formatMoney(value)}</dd>
+                  <div key={label} className="min-w-0 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <dt className="text-sm text-slate-600">{label}</dt>
+                    <dd className="mt-2 break-words text-lg font-semibold">{formatMoney(value)}</dd>
                   </div>
                 ))}
               </dl>
