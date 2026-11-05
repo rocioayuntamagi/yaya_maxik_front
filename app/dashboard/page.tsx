@@ -12,6 +12,15 @@ type DailySummary = {
   balanceDia: number;
 };
 
+type WeeklyDay = {
+  fecha: string;
+  totalVentas: number;
+  fiadoGenerado: number;
+  fiadoRecuperado: number;
+  gastos: number;
+  balanceDia: number;
+};
+
 type DailySale = {
   _id: string;
   total: number;
@@ -24,6 +33,7 @@ type RankedProduct = { id: string; name: string; quantity: number };
 
 const formatMoney = (amount: number) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+const formatDay = (fecha: string) => fecha.split("-").reverse().join("/");
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -33,6 +43,9 @@ export default function DashboardPage() {
   const [sales, setSales] = useState<DailySale[]>([]);
   const [salesLoading, setSalesLoading] = useState(true);
   const [salesError, setSalesError] = useState("");
+  const [weekly, setWeekly] = useState<WeeklyDay[]>([]);
+  const [weeklyLoading, setWeeklyLoading] = useState(true);
+  const [weeklyError, setWeeklyError] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -96,6 +109,36 @@ export default function DashboardPage() {
     return () => { active = false; };
   }, [router]);
 
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    let active = true;
+    const loadWeekly = async () => {
+      try {
+        const res = await fetch("http://localhost:4000/api/dashboard/week", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (res.status === 401) {
+          router.replace("/login");
+          return;
+        }
+        if (!res.ok) throw new Error(data.message || "No se pudo cargar el resumen semanal");
+        if (!Array.isArray(data) || data.length !== 7) throw new Error("Respuesta inválida del resumen semanal");
+        if (active) setWeekly(data as WeeklyDay[]);
+      } catch (err) {
+        if (active) setWeeklyError(err instanceof Error ? err.message : "No se pudo cargar el resumen semanal");
+      } finally {
+        if (active) setWeeklyLoading(false);
+      }
+    };
+
+    loadWeekly();
+    return () => { active = false; };
+  }, [router]);
+
   const { salesByMethod, ranking } = useMemo(() => {
     const totals = { efectivo: 0, tarjeta: 0, transferencia: 0 };
     const products = new Map<string, RankedProduct>();
@@ -156,6 +199,40 @@ export default function DashboardPage() {
                 ))}
               </dl>
             )}
+
+            <div className="mt-6 border-t border-slate-200 pt-4">
+              <h3 className="font-semibold">Últimos 7 días</h3>
+              {weeklyLoading ? <p className="mt-3 text-sm text-slate-600">Cargando resumen semanal...</p> : weeklyError ? (
+                <p role="alert" className="mt-3 text-sm text-red-700">{weeklyError}</p>
+              ) : (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[680px] text-sm">
+                    <thead>
+                      <tr className="text-slate-600">
+                        <th scope="col" className="px-2 py-2 text-left font-medium">Fecha</th>
+                        <th scope="col" className="px-2 py-2 text-right font-medium">Ventas</th>
+                        <th scope="col" className="px-2 py-2 text-right font-medium">Fiado generado</th>
+                        <th scope="col" className="px-2 py-2 text-right font-medium">Fiado recuperado</th>
+                        <th scope="col" className="px-2 py-2 text-right font-medium">Gastos</th>
+                        <th scope="col" className="px-2 py-2 text-right font-medium">Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {weekly.map((day) => (
+                        <tr key={day.fecha} className="border-t border-slate-100">
+                          <td className="whitespace-nowrap px-2 py-2">{formatDay(day.fecha)}</td>
+                          <td className="whitespace-nowrap px-2 py-2 text-right">{formatMoney(day.totalVentas)}</td>
+                          <td className="whitespace-nowrap px-2 py-2 text-right">{formatMoney(day.fiadoGenerado)}</td>
+                          <td className="whitespace-nowrap px-2 py-2 text-right">{formatMoney(day.fiadoRecuperado)}</td>
+                          <td className="whitespace-nowrap px-2 py-2 text-right">{formatMoney(day.gastos)}</td>
+                          <td className="whitespace-nowrap px-2 py-2 text-right">{formatMoney(day.balanceDia)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </section>
 
           <section aria-labelledby="graficos-listados" className="rounded-lg border border-slate-200 bg-white p-5">
