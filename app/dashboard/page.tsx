@@ -30,6 +30,7 @@ type DailySale = {
 };
 
 type RankedProduct = { id: string; name: string; quantity: number };
+type LowStockProduct = { name: string; category: string; stock: number };
 
 const formatMoney = (amount: number) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
@@ -46,6 +47,9 @@ export default function DashboardPage() {
   const [weekly, setWeekly] = useState<WeeklyDay[]>([]);
   const [weeklyLoading, setWeeklyLoading] = useState(true);
   const [weeklyError, setWeeklyError] = useState("");
+  const [lowStock, setLowStock] = useState<LowStockProduct[]>([]);
+  const [stockLoading, setStockLoading] = useState(true);
+  const [stockError, setStockError] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -136,6 +140,39 @@ export default function DashboardPage() {
     };
 
     loadWeekly();
+    return () => { active = false; };
+  }, [router]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    let active = true;
+    const loadLowStock = async () => {
+      try {
+        const res = await fetch("http://localhost:4000/api/products/low-stock", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (res.status === 401) {
+          router.replace("/login");
+          return;
+        }
+        if (!res.ok) throw new Error(data.message || "No se pudo cargar el stock bajo");
+        if (!Array.isArray(data)) throw new Error("Respuesta inválida de stock bajo");
+        const products = (data as LowStockProduct[])
+          .sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name, "es"))
+          .slice(0, 5);
+        if (active) setLowStock(products);
+      } catch (err) {
+        if (active) setStockError(err instanceof Error ? err.message : "No se pudo cargar el stock bajo");
+      } finally {
+        if (active) setStockLoading(false);
+      }
+    };
+
+    loadLowStock();
     return () => { active = false; };
   }, [router]);
 
@@ -349,6 +386,27 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
+              )}
+            </section>
+
+            <section aria-labelledby="stock-bajo" className="mt-6 border-t border-slate-200 pt-4">
+              <h3 id="stock-bajo" className="font-semibold">Productos con stock bajo</h3>
+              {stockLoading ? <p className="mt-3 text-sm text-slate-600">Cargando productos...</p> : stockError ? (
+                <p role="alert" className="mt-3 text-sm text-red-700">{stockError}</p>
+              ) : lowStock.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-600">Todo en orden: no hay productos con stock bajo.</p>
+              ) : (
+                <ul className="mt-3 divide-y divide-slate-200">
+                  {lowStock.map((product, index) => (
+                    <li key={`${product.name}-${product.category}-${index}`} className="flex items-start justify-between gap-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <p className="break-words font-medium">{product.name}</p>
+                        <p className="text-slate-600">{product.category}</p>
+                      </div>
+                      <span className="shrink-0">Stock: {product.stock}</span>
+                    </li>
+                  ))}
+                </ul>
               )}
             </section>
           </section>
