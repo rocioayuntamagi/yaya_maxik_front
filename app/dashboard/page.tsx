@@ -167,6 +167,7 @@ export default function DashboardPage() {
   }, [sales]);
 
   const maxSales = Math.max(...Object.values(salesByMethod));
+  const maxWeeklySales = Math.max(0, ...weekly.map((day) => day.totalVentas));
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900 sm:px-8">
@@ -176,7 +177,7 @@ export default function DashboardPage() {
         </header>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <section aria-labelledby="indicadores-diarios" className="rounded-lg border border-slate-200 bg-white p-5">
+          <section aria-labelledby="indicadores-diarios" className="min-w-0 rounded-lg border border-slate-200 bg-white p-5">
             <h2 id="indicadores-diarios" className="text-xl font-semibold">Indicadores diarios</h2>
             {loading ? <p className="mt-4 text-slate-600">Cargando indicadores...</p> : error ? (
               <p role="alert" className="mt-4 text-red-700">{error}</p>
@@ -235,7 +236,7 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          <section aria-labelledby="graficos-listados" className="rounded-lg border border-slate-200 bg-white p-5">
+          <section aria-labelledby="graficos-listados" className="min-w-0 rounded-lg border border-slate-200 bg-white p-5">
             <h2 id="graficos-listados" className="text-xl font-semibold">Gráficos y listados</h2>
             {salesLoading ? <p className="mt-4 text-slate-600">Cargando ventas...</p> : salesError ? (
               <p role="alert" className="mt-4 text-red-700">{salesError}</p>
@@ -281,6 +282,29 @@ export default function DashboardPage() {
                 </section>
               </div>
             )}
+            <section aria-labelledby="ventas-semana" className="mt-6 border-t border-slate-200 pt-4">
+              <h3 id="ventas-semana" className="font-semibold">Ventas de los últimos 7 días</h3>
+              {weeklyLoading ? <p className="mt-3 text-sm text-slate-600">Cargando ventas semanales...</p> : weeklyError ? (
+                <p role="alert" className="mt-3 text-sm text-red-700">{weeklyError}</p>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  {weekly.map((day) => (
+                    <div key={day.fecha}>
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <span>{formatDay(day.fecha)}</span>
+                        <span>{formatMoney(day.totalVentas)}</span>
+                      </div>
+                      <div aria-hidden="true" className="mt-1 h-3 rounded bg-slate-100">
+                        <div
+                          className="h-full rounded bg-slate-500"
+                          style={{ width: `${maxWeeklySales > 0 ? (Math.max(0, day.totalVentas) / maxWeeklySales) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           </section>
         </div>
       </div>
