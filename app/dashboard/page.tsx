@@ -166,6 +166,30 @@ export default function DashboardPage() {
     };
   }, [sales]);
 
+  const { ticketAverage, mostUsedMethod } = useMemo(() => {
+    const activeSales = sales.filter((sale) => !sale.cancelled);
+    const methods = { Efectivo: 0, Tarjeta: 0, Transferencia: 0, Fiado: 0 };
+    let total = 0;
+
+    for (const sale of activeSales) {
+      total += sale.total;
+      if (sale.paymentMethod === "efectivo") methods.Efectivo++;
+      else if (["debito", "credito", "mercadopago", "tarjeta"].includes(sale.paymentMethod)) methods.Tarjeta++;
+      else if (sale.paymentMethod === "transferencia") methods.Transferencia++;
+      else if (sale.paymentMethod === "fiado") methods.Fiado++;
+    }
+
+    const mostUsed = Object.entries(methods).reduce<[string, number] | null>(
+      (best, [label, count]) => count > 0 && (!best || count > best[1]) ? [label, count] : best,
+      null
+    );
+    return {
+      ticketAverage: activeSales.length ? total / activeSales.length : null,
+      mostUsedMethod: mostUsed,
+    };
+  }, [sales]);
+
+  const topProduct = ranking[0];
   const maxSales = Math.max(...Object.values(salesByMethod));
   const maxWeeklySales = Math.max(0, ...weekly.map((day) => day.totalVentas));
 
@@ -200,6 +224,28 @@ export default function DashboardPage() {
                 ))}
               </dl>
             )}
+
+            <section aria-labelledby="indicadores-avanzados" className="mt-6 border-t border-slate-200 pt-4">
+              <h3 id="indicadores-avanzados" className="font-semibold">Indicadores avanzados</h3>
+              {salesLoading ? <p className="mt-3 text-sm text-slate-600">Cargando indicadores...</p> : salesError ? (
+                <p role="alert" className="mt-3 text-sm text-red-700">{salesError}</p>
+              ) : (
+                <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {([
+                    ["Ticket promedio del día", ticketAverage === null ? "Sin ventas" : formatMoney(ticketAverage)],
+                    ["Producto más vendido del día", topProduct ? `${topProduct.name} (${topProduct.quantity} u.)` : "Sin ventas"],
+                    ["Método de pago más utilizado", mostUsedMethod
+                      ? `${mostUsedMethod[0]} (${mostUsedMethod[1]} ${mostUsedMethod[1] === 1 ? "venta" : "ventas"})`
+                      : "Sin ventas"],
+                  ] as const).map(([label, value]) => (
+                    <div key={label} className="min-w-0 rounded-md border border-slate-200 bg-slate-50 p-3">
+                      <dt className="text-sm text-slate-600">{label}</dt>
+                      <dd className="mt-2 break-words text-lg font-semibold">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </section>
 
             <div className="mt-6 border-t border-slate-200 pt-4">
               <h3 className="font-semibold">Últimos 7 días</h3>
