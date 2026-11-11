@@ -50,6 +50,9 @@ export default function DashboardPage() {
   const [lowStock, setLowStock] = useState<LowStockProduct[]>([]);
   const [stockLoading, setStockLoading] = useState(true);
   const [stockError, setStockError] = useState("");
+  const [criticalStock, setCriticalStock] = useState<LowStockProduct[]>([]);
+  const [criticalLoading, setCriticalLoading] = useState(true);
+  const [criticalError, setCriticalError] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -173,6 +176,39 @@ export default function DashboardPage() {
     };
 
     loadLowStock();
+    return () => { active = false; };
+  }, [router]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    let active = true;
+    const loadCriticalStock = async () => {
+      try {
+        const res = await fetch("http://localhost:4000/api/products/critical-stock", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const data = await res.json();
+        if (res.status === 401) {
+          router.replace("/login");
+          return;
+        }
+        if (!res.ok) throw new Error(data.message || "No se pudo cargar el stock crítico");
+        if (!Array.isArray(data)) throw new Error("Respuesta inválida de stock crítico");
+        const products = (data as LowStockProduct[])
+          .filter((product) => product.stock <= 2)
+          .sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name, "es"));
+        if (active) setCriticalStock(products);
+      } catch (err) {
+        if (active) setCriticalError(err instanceof Error ? err.message : "No se pudo cargar el stock crítico");
+      } finally {
+        if (active) setCriticalLoading(false);
+      }
+    };
+
+    loadCriticalStock();
     return () => { active = false; };
   }, [router]);
 
@@ -404,6 +440,27 @@ export default function DashboardPage() {
                         <p className="text-slate-600">{product.category}</p>
                       </div>
                       <span className="shrink-0">Stock: {product.stock}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section aria-labelledby="stock-critico" className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
+              <h3 id="stock-critico" className="font-semibold text-red-800">Productos con stock crítico</h3>
+              {criticalLoading ? <p className="mt-3 text-sm text-slate-600">Cargando productos...</p> : criticalError ? (
+                <p role="alert" className="mt-3 text-sm text-red-800">{criticalError}</p>
+              ) : criticalStock.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-600">Todo en orden: no hay productos con stock crítico.</p>
+              ) : (
+                <ul className="mt-3 max-h-60 divide-y divide-red-100 overflow-y-auto">
+                  {criticalStock.map((product, index) => (
+                    <li key={`${product.name}-${product.category}-${index}`} className="flex items-start justify-between gap-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <p className="break-words font-medium">{product.name}</p>
+                        <p className="text-slate-600">{product.category}</p>
+                      </div>
+                      <span className="shrink-0 font-semibold text-red-800">Stock: {product.stock}</span>
                     </li>
                   ))}
                 </ul>
