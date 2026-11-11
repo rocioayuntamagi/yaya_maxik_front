@@ -285,6 +285,18 @@ const handleProductDelete = async (id: string) => {
 
                   <div className={styles.cardActions}>
                     <button
+                      type="button"
+                      className={styles.editBtn}
+                      style={{ padding: "8px 6px", fontSize: 12 }}
+                      disabled={!p._id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (p._id) router.push(`/stock/ajustes?product=${encodeURIComponent(p._id)}`);
+                      }}
+                    >
+                      Ajustar stock
+                    </button>
+                    <button
                       className={styles.deleteBtn}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -404,6 +416,18 @@ const handleProductDelete = async (id: string) => {
                   <p className={styles.cardHint}>Haga click para ver producto</p>
 
                   <div className={styles.cardActions}>
+                    <button
+                      type="button"
+                      className={styles.editBtn}
+                      style={{ padding: "8px 6px", fontSize: 12 }}
+                      disabled={!p._id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (p._id) router.push(`/stock/ajustes?product=${encodeURIComponent(p._id)}`);
+                      }}
+                    >
+                      Ajustar stock
+                    </button>
                     <button
                       className={styles.deleteBtn}
                       onClick={(e) => {

@@ -47,7 +47,14 @@ export default function StockAdjustmentsPage() {
         }
         if (!res.ok) throw new Error(data.message || "No se pudieron cargar los productos");
         if (!Array.isArray(data)) throw new Error("Respuesta inválida de productos");
-        if (active) setProducts((data as Product[]).sort((a, b) => a.name.localeCompare(b.name, "es")));
+        if (active) {
+          const sorted = (data as Product[]).sort((a, b) => a.name.localeCompare(b.name, "es"));
+          setProducts(sorted);
+          const requestedProduct = new URLSearchParams(window.location.search).get("product");
+          if (requestedProduct && sorted.some((item) => item._id === requestedProduct)) {
+            setProduct(requestedProduct);
+          }
+        }
       } catch (err) {
         if (active) setProductsError(err instanceof Error ? err.message : "No se pudieron cargar los productos");
       } finally {
